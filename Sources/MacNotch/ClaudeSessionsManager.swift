@@ -6,21 +6,26 @@ import Foundation
 final class ClaudeSessionsManager: ObservableObject {
     @Published private(set) var anyWorking = false
 
-    /// When the exhausted usage window frees up, if a limit is currently hit.
-    /// nil when no window is at/over the block threshold (Claude is available).
-    /// Fed by ratelimit.json, which our statusLine command writes.
+    /// When the exhausted/near-limit usage window frees up. nil when every window
+    /// is below the configured threshold (Claude is available). Fed by
+    /// ratelimit.json, which our statusLine command writes.
     @Published private(set) var limitResetAt: Date?
+    /// True when the binding window is actually at/over 100% (Claude is blocked),
+    /// vs merely past the "show" threshold. Drives the wording in the Timer tab.
+    @Published private(set) var limitBlocked = false
 
     /// A session is dropped from "working" if it hasn't produced an event in this
     /// long (guards against a session that never emits Stop, e.g. after a crash).
     private let workingTimeout: TimeInterval = 10 * 60
 
-    /// A window counts as "hit" (Claude blocked) at or above this percentage.
-    private let limitBlockThreshold = 99.0
-
+    private let settings: Settings
     private var status: [String: (working: Bool, at: Date)] = [:]
     private var offset: UInt64 = 0
     private var timer: Timer?
+
+    // Desktop-app fallback source (throttled — it scans LevelDB files).
+    private var lastDesktopRead = Date.distantPast
+    private var desktopReset: Date?
 
     private let home = FileManager.default.homeDirectoryForCurrentUser
     private var dir: URL { home.appendingPathComponent(".claude/mac-notch") }
@@ -28,7 +33,8 @@ final class ClaudeSessionsManager: ObservableObject {
     private var rateLimitFile: URL { dir.appendingPathComponent("ratelimit.json") }
     private var settingsFile: URL { home.appendingPathComponent(".claude/settings.json") }
 
-    init() {
+    init(settings: Settings) {
+        self.settings = settings
         // Start from the end of the log — events written before launch must not
         // count as "thinking now" (otherwise the island hangs after relaunch).
         if let size = (try? FileManager.default.attributesOfItem(atPath: eventsFile.path))?[.size] as? NSNumber {
@@ -59,25 +65,47 @@ final class ClaudeSessionsManager: ObservableObject {
         readRateLimit()
     }
 
-    /// Read the reset times captured by our statusLine command. The binding
-    /// reset is the latest `resets_at` among windows that are currently hit; if
-    /// none are hit, Claude is available and this is nil.
+    /// Update the limit-reset state. Prefer the statusLine data (terminal Claude
+    /// Code); if that file doesn't exist — e.g. the user works in the desktop app
+    /// — fall back to the desktop app's own Local Storage.
     private func readRateLimit() {
-        guard let data = try? Data(contentsOf: rateLimitFile),
-              let o = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
-            if limitResetAt != nil { limitResetAt = nil }
+        guard settings.trackClaude else { setLimit(reset: nil, blocked: false); return }
+        if let o = (try? Data(contentsOf: rateLimitFile))
+            .flatMap({ try? JSONSerialization.jsonObject(with: $0) }) as? [String: Any] {
+            let (reset, blocked) = statusLineLimit(o)
+            setLimit(reset: reset, blocked: blocked)
             return
         }
+        // Desktop fallback: scanning the LevelDB is heavier, so throttle it.
+        if Date().timeIntervalSince(lastDesktopRead) > 15 {
+            lastDesktopRead = Date()
+            desktopReset = DesktopLimitReader.resetsAt()
+        }
+        // No usage % is available from the desktop store, so don't claim Claude
+        // is blocked — "limits reset at HH:MM" reads honestly whether or not it is.
+        setLimit(reset: desktopReset, blocked: false)
+    }
+
+    /// Binding reset from statusLine data: latest `resets_at` among windows past
+    /// the configured "show" threshold (nil if none), plus whether any is ≥100%.
+    private func statusLineLimit(_ o: [String: Any]) -> (Date?, Bool) {
+        let threshold = Double(settings.claudeLimitThreshold)
         var candidates: [Date] = []
+        var blocked = false
         for (usedKey, resetKey) in [("five_hour_used", "five_hour_resets_at"),
                                     ("seven_day_used", "seven_day_resets_at")] {
-            if let used = o[usedKey] as? Double, used >= limitBlockThreshold,
+            if let used = o[usedKey] as? Double, used >= threshold,
                let epoch = o[resetKey] as? Double {
                 candidates.append(Date(timeIntervalSince1970: epoch))
+                if used >= 100 { blocked = true }
             }
         }
-        let reset = candidates.max()
+        return (candidates.max(), blocked)
+    }
+
+    private func setLimit(reset: Date?, blocked: Bool) {
         if reset != limitResetAt { limitResetAt = reset }
+        if blocked != limitBlocked { limitBlocked = blocked }
     }
 
     private func process(_ line: String) {

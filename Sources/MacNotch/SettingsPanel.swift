@@ -64,6 +64,11 @@ struct SettingsView: View {
                 Toggle("Launch at login", isOn: $settings.launchAtLogin)
                 Toggle("Track Claude Code sessions", isOn: $settings.trackClaude)
                     .onChange(of: settings.trackClaude) { on in if on { claude.installHooks() } }
+                if settings.trackClaude {
+                    Stepper(value: $settings.claudeLimitThreshold, in: 50...100, step: 5) {
+                        Text("Show limit reset from \(settings.claudeLimitThreshold)% usage")
+                    }
+                }
             }
 
             Section("Modules") {
@@ -81,7 +86,7 @@ struct SettingsView: View {
                 }
                 Toggle("Play sound when a session ends", isOn: $settings.pomodoroSound)
                 if settings.pomodoroSound {
-                    soundList
+                    SoundPicker(selection: $settings.pomodoroSoundName)
                     Toggle("Play sound during Do Not Disturb / Focus", isOn: $settings.soundDuringDND)
                 }
             }
@@ -133,40 +138,6 @@ struct SettingsView: View {
         .frame(minWidth: 460, minHeight: 440)
     }
 
-    private var soundList: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Sound — hover to preview")
-                .font(.caption).foregroundStyle(.secondary)
-            ScrollView {
-                VStack(spacing: 1) {
-                    ForEach(SystemSounds.available, id: \.self) { soundRow($0) }
-                }
-                .padding(2)
-            }
-            .frame(height: 132)
-            .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.05)))
-            .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color.primary.opacity(0.1)))
-        }
-    }
-
-    private func soundRow(_ name: String) -> some View {
-        let selected = settings.pomodoroSoundName == name
-        return HStack(spacing: 8) {
-            Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-                .font(.system(size: 12))
-                .foregroundStyle(selected ? Color.accentColor : Color.secondary.opacity(0.5))
-            Text(name).font(.system(size: 12))
-            Spacer()
-        }
-        .padding(.vertical, 3).padding(.horizontal, 6)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 5)
-            .fill(selected ? Color.accentColor.opacity(0.18) : Color.clear))
-        .contentShape(Rectangle())
-        .onHover { if $0 { SystemSounds.preview(name) } }
-        .onTapGesture { settings.pomodoroSoundName = name; SystemSounds.preview(name) }
-    }
-
     private func moduleRow(_ module: Module) -> some View {
         HStack(spacing: 8) {
             Image(systemName: module.icon).frame(width: 18)
@@ -197,5 +168,63 @@ struct SettingsView: View {
             settings.bufferRootPath = url.path
             buffer.applySettings()
         }
+    }
+}
+
+/// macOS-style sound chooser: a compact control showing the current sound; click
+/// it to drop down the list, and only there does hovering preview a sound — so
+/// scrolling the Settings form never makes noise.
+struct SoundPicker: View {
+    @Binding var selection: String
+    @State private var open = false
+    @State private var hovered: String?
+
+    var body: some View {
+        HStack {
+            Text("Sound")
+            Spacer()
+            Button { open.toggle() } label: {
+                HStack(spacing: 6) {
+                    Text(selection)
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .popover(isPresented: $open, arrowEdge: .bottom) { list }
+        }
+    }
+
+    private var list: some View {
+        ScrollView {
+            VStack(spacing: 1) {
+                ForEach(SystemSounds.available, id: \.self) { row($0) }
+            }
+            .padding(4)
+        }
+        .frame(width: 210, height: min(CGFloat(SystemSounds.available.count) * 27 + 8, 320))
+    }
+
+    private func row(_ name: String) -> some View {
+        let selected = name == selection
+        let hot = hovered == name
+        return HStack(spacing: 8) {
+            Image(systemName: "checkmark")
+                .font(.system(size: 11, weight: .bold))
+                .opacity(selected ? 1 : 0)
+                .frame(width: 12)
+            Text(name).font(.system(size: 13))
+            Spacer()
+        }
+        .padding(.vertical, 5).padding(.horizontal, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 5)
+            .fill(hot ? Color.accentColor.opacity(0.25) : .clear))
+        .contentShape(Rectangle())
+        .onHover { h in
+            if h { hovered = name; SystemSounds.preview(name) }
+            else if hovered == name { hovered = nil }
+        }
+        .onTapGesture { selection = name; open = false }
     }
 }

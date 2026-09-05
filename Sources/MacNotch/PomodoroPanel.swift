@@ -78,7 +78,12 @@ struct PomodoroPanel: View {
 
     private func readyText(now: Date) -> String? {
         guard let reset = claude.limitResetAt else { return nil }
-        if now < reset { return "Claude will be ready at \(clock(reset))" }
+        if now < reset {
+            // Blocked (at/over 100%) vs merely nearing the limit — word it honestly.
+            return claude.limitBlocked
+                ? "Claude will be ready at \(clock(reset))"
+                : "Claude limits reset at \(clock(reset))"
+        }
         // Celebrate for an hour after the reset, then fall silent.
         if now < reset.addingTimeInterval(60 * 60) { return "Claude is ready!" }
         return nil

@@ -21,7 +21,7 @@ final class AppModules {
         usage = AppUsageTracker(settings: settings)
         todo = TodoStore()
         media = MediaController()
-        claude = ClaudeSessionsManager()
+        claude = ClaudeSessionsManager(settings: settings)
     }
 
     /// Shared support directory: ~/Library/Application Support/MacNotch

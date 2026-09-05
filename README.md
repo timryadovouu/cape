@@ -20,6 +20,7 @@
   <img src="https://img.shields.io/badge/Swift-5.9-FA834D?logo=swift&logoColor=white" alt="Swift 5.9" />
   <img src="https://img.shields.io/badge/UI-SwiftUI%20%2B%20AppKit-3178C6" alt="SwiftUI + AppKit" />
   <img src="https://img.shields.io/badge/dependencies-none-2ecc71" alt="no dependencies" />
+  <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license" />
 </p>
 
 ---
@@ -73,30 +74,35 @@ gives you two things:
 - A pulsing **coral blob** on the right of the notch while any Claude Code
   session is actively working — it lights only between your prompt and Claude's
   stop, so it's a real "thinking now" indicator, not just "a session is open".
-- When you hit a usage limit, a coral **"Claude will be ready at HH:MM"** line in
-  the Timer tab — and **"Claude is ready!"** once the window frees up. The time is
-  captured once and survives quitting Claude, since it's read back from disk.
+- As you approach a usage limit, a coral line in the Timer tab shows when it
+  resets — **"Claude limits reset at HH:MM"** (or **"Claude will be ready at
+  HH:MM"** when you're actually blocked) — and **"Claude is ready!"** once the
+  window frees up. The reset time is read back from disk, so it survives quitting
+  Claude.
 
 **How it works.** Enabling the toggle merges a few [hooks](https://docs.claude.com/en/docs/claude-code/hooks)
-and a `statusLine` command into `~/.claude/settings.json` (your existing file is
-backed up to `settings.json.bak` first, and your other settings are preserved):
+and a `statusLine` command into `~/.claude/settings.json` (backed up to
+`settings.json.bak` first; your other settings are preserved):
 
 - The **hooks** append session events to `~/.claude/mac-notch/events.jsonl`; that
   stream drives the blob.
-- The **statusLine** is the only place Claude Code exposes when a usage window
-  resets, so mac-notch installs *itself* as that command (a hidden
-  `mac-notch statusline` subcommand). It captures the reset times and prints a
-  compact footer: `Opus 4.8 · project · main · ctx 42% · 5h 63% · wk 21%`.
+- The **reset time** comes from whichever Claude you use:
+  - **Terminal Claude Code** — mac-notch installs *itself* as your `statusLine`
+    (a hidden `mac-notch statusline` subcommand), the only place the CLI exposes
+    when a window resets. Your terminal footer becomes a compact
+    `Opus 4.8 · project · main · ctx 42% · 5h 63% · wk 21%`, and a **threshold**
+    setting picks the usage % at which the line appears.
+  - **Desktop app** — the chat never runs a statusLine, so mac-notch reads the
+    reset time straight from the desktop app's own local storage instead
+    (best-effort: it's undocumented and may change between Claude versions).
 
-Because it becomes your statusLine, **your Claude Code footer changes to
-mac-notch's** while tracking is on. Everything stays local — nothing is sent
-anywhere.
+Everything stays local — nothing is sent anywhere.
 
 ## Settings
 
 The coral **gear** toggles a standalone window:
 
-- **General** — Launch at login, and Track Claude Code.
+- **General** — Launch at login, Track Claude Code, and the usage % at which the limit line appears.
 - **Modules** — enable/disable and reorder the tabs in the rail.
 - **Timer** — short/long break lengths, the end-of-session sound (any system sound, hover to preview), and whether it plays during a Focus.
 - **Screen Time** — how long to keep daily history (default 1 year).
@@ -134,6 +140,9 @@ Everything stays on your Mac:
 - Tasks, Screen Time, settings: `~/Library/Application Support/MacNotch/`
 - Claude Code tracking (only if enabled): `~/.claude/mac-notch/`
 
+When Claude tracking is on, mac-notch also **reads** (never writes) the reset
+time from the desktop app's local storage; that data stays on your Mac too.
+
 ## Permissions
 
 - **Media → Spotify** uses AppleScript, so macOS will ask for **Automation**
@@ -146,6 +155,7 @@ Everything stays on your Mac:
 Sources/MacNotch/
   main.swift / AppDelegate.swift      app entry (accessory policy, app icon, Edit menu)
   StatusLine.swift                    `mac-notch statusline` subcommand for Claude Code
+  DesktopLimitReader.swift            reads the limit reset time from the Claude desktop app
   ScreenNotch.swift                   notch geometry (+ non-notch fallback)
   NotchController.swift               the window over the notch + hover logic
   NotchRootView.swift                 the brow, its morphing, equalizer & Claude blob
@@ -161,6 +171,10 @@ Resources/AppIcon.png                 app icon source
 build-app.sh                          release build → mac-notch.app
 .github/workflows/                     CI: build on push, publish on version tags
 ```
+
+## License
+
+[MIT](LICENSE) © Timofei Ryadovoi
 
 ## Notes
 
