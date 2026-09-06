@@ -39,8 +39,8 @@ executable — pure SwiftUI + AppKit, **no third-party dependencies**.
 ## Screenshots
 
 <p align="center">
-  <img src="docs/screenshots/timer.png" width="49%" alt="Timer" />
   <img src="docs/screenshots/media.png" width="49%" alt="Media" />
+  <img src="docs/screenshots/timer.png" width="49%" alt="Timer" />
 </p>
 <p align="center">
   <img src="docs/screenshots/tasks.png" width="49%" alt="Tasks" />
