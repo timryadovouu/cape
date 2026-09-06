@@ -36,6 +36,20 @@ executable — pure SwiftUI + AppKit, **no third-party dependencies**.
 - Sits over the physical notch and morphs like the iPhone Dynamic Island.
 - Works on notchless Macs and external displays too (a synthetic top-center notch).
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/timer.png" width="49%" alt="Timer" />
+  <img src="docs/screenshots/media.png" width="49%" alt="Media" />
+</p>
+<p align="center">
+  <img src="docs/screenshots/tasks.png" width="49%" alt="Tasks" />
+  <img src="docs/screenshots/buffer.png" width="49%" alt="Buffer" />
+</p>
+<p align="center">
+  <img src="docs/screenshots/screenTime.png" width="49%" alt="Screen Time" />
+</p>
+
 ## Modules
 
 | Module | What it does |
@@ -111,26 +125,44 @@ The coral **gear** toggles a standalone window:
 
 ## Install & run
 
-Requires macOS 13+ and the Xcode command-line tools.
+Runs on macOS 13+. Two ways to get it:
 
-Grab a build from [Releases](https://github.com/timryadovouu/mac-notch/releases),
-or build it yourself. For development:
+### Option A — download the app (no tools needed)
+
+> The prebuilt release is **Apple Silicon only**. On an Intel Mac, use Option B —
+> building from source compiles it for your machine.
+
+1. Open the [latest release](https://github.com/timryadovouu/mac-notch/releases/latest)
+   and download **`mac-notch.zip`** under *Assets*.
+2. Double-click the zip to unpack **`mac-notch.app`**, then drag it to
+   **Applications** (optional, but tidy).
+3. The build isn't signed/notarized, so the first launch is blocked by
+   Gatekeeper. **Right-click the app → Open → Open** in the dialog (or, after a
+   blocked double-click, go to **System Settings → Privacy & Security → Open
+   Anyway**). You only do this once.
+
+### Option B — build from source
+
+Needs the **Xcode Command Line Tools** — install them once with
+`xcode-select --install` (a few hundred MB; the full Xcode is not required).
 
 ```bash
-swift run
-```
-
-Build a double-clickable app (generates the icon, packages `mac-notch.app`):
-
-```bash
-./build-app.sh
+git clone https://github.com/timryadovouu/mac-notch.git
+cd mac-notch
+./build-app.sh        # compiles, generates the icon, packages mac-notch.app
 open mac-notch.app
 ```
 
-> Unsigned build: the first launch may need **right-click → Open** to get past
-> Gatekeeper.
+`build-app.sh` drops **`mac-notch.app`** in the repo root. A build you compiled
+yourself isn't quarantined, so there's no Gatekeeper prompt. For quick iteration
+without packaging, `swift run` launches it straight from source.
 
-Quit from the red **Quit** button in the expanded panel.
+### After it's running
+
+There's **no Dock or menu-bar icon** — mac-notch lives over the notch. Hover the
+notch to expand it. To start it automatically after a reboot, open Settings (the
+coral gear) and turn on **Launch at login**. Quit from the red **Quit** button in
+the expanded panel.
 
 ## Where data lives
 

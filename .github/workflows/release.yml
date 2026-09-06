@@ -31,6 +31,15 @@ jobs:
           # Tags with a pre-release identifier (e.g. -beta, -rc) are marked as pre-releases.
           PRERELEASE=""
           case "$TAG" in *-*) PRERELEASE="--prerelease" ;; esac
-          gh release create "$TAG" mac-notch.zip \
-            --title "$TAG" \
-            --generate-notes $PRERELEASE
+
+          # Use the matching CHANGELOG section as the release notes; fall back to
+          # auto-generated notes if there's no entry for this version.
+          awk -v ver="[${TAG#v}]" '
+            /^## / { if (found) exit; if (index($0, ver)) { found=1; next } }
+            found { print }
+          ' CHANGELOG.md > notes.md
+          if [ -s notes.md ]; then
+            gh release create "$TAG" mac-notch.zip --title "$TAG" --notes-file notes.md $PRERELEASE
+          else
+            gh release create "$TAG" mac-notch.zip --title "$TAG" --generate-notes $PRERELEASE
+          fi
