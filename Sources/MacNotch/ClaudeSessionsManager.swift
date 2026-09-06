@@ -70,8 +70,14 @@ final class ClaudeSessionsManager: ObservableObject {
     /// — fall back to the desktop app's own Local Storage.
     private func readRateLimit() {
         guard settings.trackClaude else { setLimit(reset: nil, blocked: false); return }
+        // Terminal statusLine data — used only while it's fresh (a terminal Claude
+        // Code session is actively rendering). Once that goes stale we fall through
+        // to the desktop app, so using both never lets a closed terminal's old
+        // snapshot shadow the live desktop one.
         if let o = (try? Data(contentsOf: rateLimitFile))
-            .flatMap({ try? JSONSerialization.jsonObject(with: $0) }) as? [String: Any] {
+            .flatMap({ try? JSONSerialization.jsonObject(with: $0) }) as? [String: Any],
+           let updated = o["updated_at"] as? Double,
+           Date().timeIntervalSince1970 - updated < 600 {
             let (reset, blocked) = statusLineLimit(o)
             setLimit(reset: reset, blocked: blocked)
             return
