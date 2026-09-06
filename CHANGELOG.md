@@ -4,15 +4,31 @@ All notable changes to mac-notch are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.1.0] — 2026-09-06
 
-### Changed
-- The Claude 5-hour reset line in the Timer tab now shows as soon as you start
-  using the window, rather than only past a usage threshold.
+First stable release. mac-notch is a Dynamic-Island-style hub that lives over the
+MacBook notch — hover to reveal, no Dock or menu-bar icon, zero dependencies.
 
-### Removed
-- The usage-% threshold setting — the reset time is the same regardless of usage,
-  and it isn't readable at all in the desktop app, so the slider was misleading.
+### Features
+- **Timer** — Pomodoro with focus presets and phase alerts, a collapsed-brow
+  countdown, and a chime you can pick from any system sound (hover to preview),
+  with an option to keep it during a Focus.
+- **Buffer** — a file-backed clipboard: everything you copy is saved as a real
+  file in per-day folders, draggable straight out to Finder or any app.
+- **Tasks** — a local to-do list with undone-on-top ordering and a trash.
+- **Screen Time** — on-device, per-day usage snapshots with a Mon–Sun week chart.
+- **Media** — now-playing and transport for Spotify and cmus, with collapsed-brow
+  islands (an equalizer while playing, a coral pause when paused).
+- **System metrics** — live CPU and RAM beside the camera; RAM "used" matches
+  `htop`/`btop`.
+- **Claude Code integration** (opt-in) — a pulsing coral blob while a session is
+  thinking, and a Timer-tab line showing when your 5-hour usage window resets,
+  read from the terminal `statusLine` or the desktop app's local storage.
+- A standalone Settings window, Launch at login, and an MIT license.
+
+### Notes
+- Unsigned build — the first launch needs **right-click → Open** (Gatekeeper).
+- The prebuilt download is **Apple Silicon only**; Intel Macs build from source.
 
 ## [0.1.0-beta.2] — 2026-09-06
 
@@ -56,5 +72,6 @@ Initial public beta.
 - A standalone **Settings** window, Launch at login, and GitHub Actions CI +
   releases.
 
+[0.1.0]: https://github.com/timryadovouu/mac-notch/releases/tag/v0.1.0
 [0.1.0-beta.2]: https://github.com/timryadovouu/mac-notch/releases/tag/v0.1.0-beta.2
 [0.1.0-beta.1]: https://github.com/timryadovouu/mac-notch/releases/tag/v0.1.0-beta.1
