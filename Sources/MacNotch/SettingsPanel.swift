@@ -64,11 +64,6 @@ struct SettingsView: View {
                 Toggle("Launch at login", isOn: $settings.launchAtLogin)
                 Toggle("Track Claude Code sessions", isOn: $settings.trackClaude)
                     .onChange(of: settings.trackClaude) { on in if on { claude.installHooks() } }
-                if settings.trackClaude {
-                    Stepper(value: $settings.claudeLimitThreshold, in: 50...100, step: 5) {
-                        Text("Show limit reset from \(settings.claudeLimitThreshold)% usage")
-                    }
-                }
             }
 
             Section("Modules") {

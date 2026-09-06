@@ -30,8 +30,6 @@ final class Settings: ObservableObject {
     // MARK: General
     @Published var launchAtLogin: Bool { didSet { applyLoginItem() } }
     @Published var trackClaude: Bool { didSet { d.set(trackClaude, forKey: "trackClaude") } }
-    /// Usage % at/above which the Timer tab shows the Claude limit-reset line.
-    @Published var claudeLimitThreshold: Int { didSet { d.set(claudeLimitThreshold, forKey: "claudeLimitThreshold") } }
 
     private let d = UserDefaults.standard
 
@@ -59,7 +57,6 @@ final class Settings: ObservableObject {
         screenTimeRetentionDays = d.object(forKey: "screenTimeRetentionDays") as? Int ?? 365
 
         trackClaude = d.object(forKey: "trackClaude") as? Bool ?? false
-        claudeLimitThreshold = d.object(forKey: "claudeLimitThreshold") as? Int ?? 90
         launchAtLogin = (SMAppService.mainApp.status == .enabled)
     }
 

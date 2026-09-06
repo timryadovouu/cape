@@ -4,6 +4,16 @@ All notable changes to mac-notch are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- The Claude 5-hour reset line in the Timer tab now shows as soon as you start
+  using the window, rather than only past a usage threshold.
+
+### Removed
+- The usage-% threshold setting — the reset time is the same regardless of usage,
+  and it isn't readable at all in the desktop app, so the slider was misleading.
+
 ## [0.1.0-beta.2] — 2026-09-06
 
 ### Added

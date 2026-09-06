@@ -86,21 +86,12 @@ final class ClaudeSessionsManager: ObservableObject {
         setLimit(reset: desktopReset, blocked: false)
     }
 
-    /// Binding reset from statusLine data: latest `resets_at` among windows past
-    /// the configured "show" threshold (nil if none), plus whether any is ≥100%.
+    /// The 5-hour window's reset from statusLine data, shown as soon as the window
+    /// is used at all (nil if untouched). `blocked` is true once it hits 100%.
     private func statusLineLimit(_ o: [String: Any]) -> (Date?, Bool) {
-        let threshold = Double(settings.claudeLimitThreshold)
-        var candidates: [Date] = []
-        var blocked = false
-        for (usedKey, resetKey) in [("five_hour_used", "five_hour_resets_at"),
-                                    ("seven_day_used", "seven_day_resets_at")] {
-            if let used = o[usedKey] as? Double, used >= threshold,
-               let epoch = o[resetKey] as? Double {
-                candidates.append(Date(timeIntervalSince1970: epoch))
-                if used >= 100 { blocked = true }
-            }
-        }
-        return (candidates.max(), blocked)
+        guard let used = o["five_hour_used"] as? Double, used > 0,
+              let epoch = o["five_hour_resets_at"] as? Double else { return (nil, false) }
+        return (Date(timeIntervalSince1970: epoch), used >= 100)
     }
 
     private func setLimit(reset: Date?, blocked: Bool) {

@@ -88,11 +88,10 @@ gives you two things:
 - A pulsing **coral blob** on the right of the notch while any Claude Code
   session is actively working — it lights only between your prompt and Claude's
   stop, so it's a real "thinking now" indicator, not just "a session is open".
-- As you approach a usage limit, a coral line in the Timer tab shows when it
-  resets — **"Claude limits reset at HH:MM"** (or **"Claude will be ready at
-  HH:MM"** when you're actually blocked) — and **"Claude is ready!"** once the
-  window frees up. The reset time is read back from disk, so it survives quitting
-  Claude.
+- Once you start using your 5-hour window, a coral line in the Timer tab shows
+  when it resets — **"Claude limits reset at HH:MM"** (or **"Claude will be ready
+  at HH:MM"** when it's actually maxed out) — and **"Claude is ready!"** once it
+  frees up. The reset time is read back from disk, so it survives quitting Claude.
 
 **How it works.** Enabling the toggle merges a few [hooks](https://docs.claude.com/en/docs/claude-code/hooks)
 and a `statusLine` command into `~/.claude/settings.json` (backed up to
@@ -104,8 +103,7 @@ and a `statusLine` command into `~/.claude/settings.json` (backed up to
   - **Terminal Claude Code** — mac-notch installs *itself* as your `statusLine`
     (a hidden `mac-notch statusline` subcommand), the only place the CLI exposes
     when a window resets. Your terminal footer becomes a compact
-    `Opus 4.8 · project · main · ctx 42% · 5h 63% · wk 21%`, and a **threshold**
-    setting picks the usage % at which the line appears.
+    `Opus 4.8 · project · main · ctx 42% · 5h 63% · wk 21%`.
   - **Desktop app** — the chat never runs a statusLine, so mac-notch reads the
     reset time straight from the desktop app's own local storage instead
     (best-effort: it's undocumented and may change between Claude versions).
@@ -116,7 +114,7 @@ Everything stays local — nothing is sent anywhere.
 
 The coral **gear** toggles a standalone window:
 
-- **General** — Launch at login, Track Claude Code, and the usage % at which the limit line appears.
+- **General** — Launch at login and Track Claude Code.
 - **Modules** — enable/disable and reorder the tabs in the rail.
 - **Timer** — short/long break lengths, the end-of-session sound (any system sound, hover to preview), and whether it plays during a Focus.
 - **Screen Time** — how long to keep daily history (default 1 year).
