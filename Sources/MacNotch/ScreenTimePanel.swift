@@ -6,7 +6,7 @@ struct ScreenTimePanel: View {
     @State private var offset = 0                 // 0 = today, -1 = yesterday…
     @State private var cached: DayStats? = nil     // loaded stats for a past day
     @State private var earliest = 0
-    @State private var pastTotals: [Int: Int] = [:]  // offset (<0) -> that day's total
+    @State private var weekTotals: [Int: Int] = [:]  // offset -> total, for the shown week
     @State private var showChart = false             // week chart hidden by default
 
     private var stats: DayStats {
@@ -41,26 +41,39 @@ struct ScreenTimePanel: View {
         }
         .onAppear {
             earliest = usage.earliestOffset()
-            var totals: [Int: Int] = [:]
-            for off in -6 ... -1 { totals[off] = usage.loadDay(offset: off).total }
-            pastTotals = totals
+            loadWeek()
         }
         .onChange(of: offset) { newOffset in
             cached = newOffset == 0 ? nil : usage.loadDay(offset: newOffset)
             earliest = usage.earliestOffset()
+            loadWeek()
         }
+    }
+
+    /// Offsets (relative to today) of Mon…Sun for the week that contains `day`.
+    private func weekOffsets(for day: Int) -> [Int] {
+        let weekday = Calendar.current.component(.weekday, from: dateFor(day))  // 1=Sun … 7=Sat
+        let mondayOffset = (weekday + 5) % 7                                    // Mon=0 … Sun=6
+        return (0 ... 6).map { day - mondayOffset + $0 }
+    }
+
+    /// Load daily totals for the week that contains the selected day.
+    private func loadWeek() {
+        var totals: [Int: Int] = [:]
+        for off in weekOffsets(for: offset) where off < 0 {
+            totals[off] = usage.loadDay(offset: off).total
+        }
+        weekTotals = totals
     }
 
     // MARK: - Week chart
 
     private var weekChart: some View {
-        // Current calendar week, Monday first. Offsets are relative to today;
-        // days still to come this week show empty and aren't selectable.
-        let weekday = Calendar.current.component(.weekday, from: Date())  // 1=Sun … 7=Sat
-        let mondayOffset = (weekday + 5) % 7                              // Mon=0 … Sun=6
-        let bars = (0 ... 6).map { i -> (Int, Int, Bool) in
-            let off = i - mondayOffset
-            let total = off == 0 ? usage.totalSeconds : (off < 0 ? (pastTotals[off] ?? 0) : 0)
+        // The Monday–Sunday week that contains the *selected* day, so paging back
+        // moves the chart to that day's week. Future days (only ever in the
+        // current week) show empty and aren't selectable.
+        let bars = weekOffsets(for: offset).map { off -> (Int, Int, Bool) in
+            let total = off == 0 ? usage.totalSeconds : (weekTotals[off] ?? 0)
             return (off, total, off <= 0)
         }
         let maxV = max(1, bars.map { $0.1 }.max() ?? 1)

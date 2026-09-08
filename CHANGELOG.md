@@ -4,6 +4,13 @@ All notable changes to mac-notch are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.2] — 2026-09-08
+
+### Fixed
+- Screen Time week chart: paging to a day in another week now moves the chart to
+  that day's Monday–Sunday week (and loads its totals), instead of always showing
+  the current week regardless of the selected day.
+
 ## [0.1.1] — 2026-09-06
 
 ### Fixed
@@ -80,6 +87,7 @@ Initial public beta.
 - A standalone **Settings** window, Launch at login, and GitHub Actions CI +
   releases.
 
+[0.1.2]: https://github.com/timryadovouu/mac-notch/releases/tag/v0.1.2
 [0.1.1]: https://github.com/timryadovouu/mac-notch/releases/tag/v0.1.1
 [0.1.0]: https://github.com/timryadovouu/mac-notch/releases/tag/v0.1.0
 [0.1.0-beta.2]: https://github.com/timryadovouu/mac-notch/releases/tag/v0.1.0-beta.2
