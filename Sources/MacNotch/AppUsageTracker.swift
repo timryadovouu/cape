@@ -36,6 +36,13 @@ final class AppUsageTracker: ObservableObject {
 
     private let selfName = NSRunningApplication.current.localizedName ?? "mac-notch"
 
+    /// Don't credit time while the screen is locked / at the login window /
+    /// running the screensaver — that isn't real usage.
+    private static let ignoredBundleIDs: Set<String> = [
+        "com.apple.loginwindow",
+        "com.apple.ScreenSaver.Engine",
+    ]
+
     init(settings: Settings) {
         self.settings = settings
         migrateLegacy()
@@ -59,7 +66,8 @@ final class AppUsageTracker: ObservableObject {
 
         guard let front = NSWorkspace.shared.frontmostApplication,
               let app = front.localizedName,
-              app != selfName else { rebuild(); return }
+              app != selfName,
+              !Self.ignoredBundleIDs.contains(front.bundleIdentifier ?? "") else { rebuild(); return }
 
         if app != lastApp {
             if lastApp != nil { switchCount += 1 }
