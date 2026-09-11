@@ -25,6 +25,10 @@ final class PomodoroModel: ObservableObject {
     @Published private(set) var phase: PomodoroPhase = .work
     @Published private(set) var timeRemaining: TimeInterval
     @Published private(set) var isRunning = false
+    /// A session exists (running or paused) — the collapsed timer pill stays
+    /// visible while this is true, so pause/resume can happen inline. `cancel()`
+    /// clears it and hides the pill.
+    @Published private(set) var isActive = false
     @Published private(set) var completedWorkSessions = 0
 
     private let settings: Settings
@@ -63,6 +67,7 @@ final class PomodoroModel: ObservableObject {
     func start() {
         guard !isRunning else { return }
         isRunning = true
+        isActive = true
         let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in self?.tick() }
         RunLoop.main.add(t, forMode: .common)
         timer = t
@@ -76,15 +81,29 @@ final class PomodoroModel: ObservableObject {
 
     func reset() {
         pause()
+        isActive = false
         timeRemaining = currentPhaseDuration
     }
 
-    func skip() { advancePhase(playSound: false) }
+    /// Stop and clear to a fresh focus session — the ✕ in the collapsed controls.
+    /// (So cancelling during a break doesn't leave you starting on a break.)
+    func cancel() {
+        pause()
+        isActive = false
+        phase = .work
+        completedWorkSessions = 0
+        timeRemaining = workDuration
+    }
+
+    /// Next phase — plays the chime and shows the left phase popup, same as a
+    /// natural phase change.
+    func skip() { advancePhase(playSound: true) }
 
     /// Apply a focus-length preset and restart the focus phase.
     func setWorkMinutes(_ minutes: Int) {
         workDuration = TimeInterval(minutes * 60)
         pause()
+        isActive = false
         phase = .work
         timeRemaining = workDuration
     }

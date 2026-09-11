@@ -4,6 +4,26 @@ All notable changes to mac-notch are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.3] — 2026-09-12
+
+### Added
+- **Buffer favorites** — ⭐ an entry (star / copy / delete on hover) to pin it to
+  the top and keep it out of the day-rollover, retention, and *Clear day* cleanups
+  (favorites live in a `_favorites` folder).
+- **Pomodoro controls in the collapsed notch** — hover the running countdown to
+  reveal inline **pause / next / cancel** without opening the panel; click the time
+  itself to pause/resume, and a paused timer blinks. **Next** now chimes and slides
+  in the *Focus / Break* alert; **Cancel** clears back to a fresh focus session.
+- **Screen Time — "Apps shown"** — choose how many apps the list shows (top 5–20
+  or all) instead of a fixed eight.
+- **Claude finish sound** (opt-in) — play a system sound when the "thinking" blob
+  clears, with its own sound picker, a Focus/DND toggle, a *mute while the Claude
+  app is in front* toggle, and a note if it matches the Pomodoro sound.
+
+### Fixed
+- **Screen Time** no longer credits time spent at the lock screen or screensaver
+  (`loginwindow`) as app usage.
+
 ## [0.1.2] — 2026-09-08
 
 ### Fixed
@@ -87,6 +107,7 @@ Initial public beta.
 - A standalone **Settings** window, Launch at login, and GitHub Actions CI +
   releases.
 
+[0.1.3]: https://github.com/timryadovouu/mac-notch/releases/tag/v0.1.3
 [0.1.2]: https://github.com/timryadovouu/mac-notch/releases/tag/v0.1.2
 [0.1.1]: https://github.com/timryadovouu/mac-notch/releases/tag/v0.1.1
 [0.1.0]: https://github.com/timryadovouu/mac-notch/releases/tag/v0.1.0

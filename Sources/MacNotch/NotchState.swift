@@ -15,6 +15,9 @@ final class NotchState: ObservableObject {
     @Published var currentModule: Module
     /// Tasks "grow the panel vertically" toggle (reset when the notch closes).
     @Published var tall = false
+    /// While the cursor hovers the collapsed timer pill: reveal the inline
+    /// pomodoro controls (pause / next / cancel) without expanding the notch.
+    @Published var pomodoroControls = false
 
     /// Keep the notch open (ignoring the cursor) until this moment — used after
     /// a grabber tap so shrinking doesn't instantly collapse the panel.

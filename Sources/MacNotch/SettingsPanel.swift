@@ -66,6 +66,24 @@ struct SettingsView: View {
                     .onChange(of: settings.trackClaude) { on in if on { claude.installHooks() } }
             }
 
+            Section("Claude") {
+                Toggle("Play a sound when Claude finishes", isOn: $settings.claudeSound)
+                    .disabled(!settings.trackClaude)
+                if settings.claudeSound {
+                    SoundPicker(selection: $settings.claudeSoundName)
+                    if settings.pomodoroSound && settings.pomodoroSoundName == settings.claudeSoundName {
+                        Text("Same as the Pomodoro sound — pick another to tell them apart.")
+                            .font(.caption).foregroundStyle(.orange)
+                    }
+                    Toggle("Play during Do Not Disturb / Focus", isOn: $settings.claudeSoundDuringDND)
+                    Toggle("Mute when the Claude app is in front", isOn: $settings.claudeSoundMuteWhenFront)
+                }
+                if !settings.trackClaude {
+                    Text("Turn on “Track Claude Code sessions” above to use this.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+
             Section("Modules") {
                 ForEach(settings.orderedModules) { module in
                     moduleRow(module)
@@ -82,6 +100,10 @@ struct SettingsView: View {
                 Toggle("Play sound when a session ends", isOn: $settings.pomodoroSound)
                 if settings.pomodoroSound {
                     SoundPicker(selection: $settings.pomodoroSoundName)
+                    if settings.claudeSound && settings.pomodoroSoundName == settings.claudeSoundName {
+                        Text("Same as the Claude finish sound — pick another to tell them apart.")
+                            .font(.caption).foregroundStyle(.orange)
+                    }
                     Toggle("Play sound during Do Not Disturb / Focus", isOn: $settings.soundDuringDND)
                 }
             }
@@ -94,6 +116,14 @@ struct SettingsView: View {
                     Text("1 year").tag(365)
                     Text("2 years").tag(730)
                     Text("Unlimited").tag(100_000)
+                }
+                Picker("Apps shown", selection: $settings.screenTimeAppCount) {
+                    Text("Top 5").tag(5)
+                    Text("Top 8").tag(8)
+                    Text("Top 10").tag(10)
+                    Text("Top 15").tag(15)
+                    Text("Top 20").tag(20)
+                    Text("All").tag(100_000)
                 }
             }
 

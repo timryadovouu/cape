@@ -114,9 +114,37 @@ final class NotchController {
         if state.expanded {
             if Date() < state.holdUntil { return }    // grace period after a grabber tap
             if !expandedZone.contains(mouse) { collapse() }
-        } else {
-            if notchZone.contains(mouse) { expand() }
+            return
         }
+        // Collapsed: hovering the running timer pill reveals its inline controls
+        // (pause / next / cancel) and makes them clickable — without expanding.
+        if let zone = pomodoroControlZone(), zone.contains(mouse) {
+            if !state.pomodoroControls { state.pomodoroControls = true }
+            panel.ignoresMouseEvents = false
+            return
+        }
+        if state.pomodoroControls { state.pomodoroControls = false }
+        if notchZone.contains(mouse) {
+            expand()
+        } else {
+            panel.ignoresMouseEvents = true
+        }
+    }
+
+    /// Screen rect of the collapsed timer pill (grown to include the controls
+    /// while shown). The notch stays centered on the camera, so the right
+    /// extension always starts at the notch's right edge + the Claude island.
+    private func pomodoroControlZone() -> NSRect? {
+        guard modules.pomodoro.isActive else { return nil }
+        let f = metrics.screenFrame
+        let claudeExt: CGFloat =
+            (modules.settings.trackClaude && modules.claude.anyWorking) ? 20 : 0
+        let rightTotal = NotchRootView.timerPillWidth
+            + (state.pomodoroControls ? NotchRootView.pomodoroControlsWidth : 0)
+        let startX = f.midX + metrics.notchWidth / 2 + claudeExt
+        let bottom = f.maxY - metrics.notchHeight - 2
+        return NSRect(x: startX - 6, y: bottom,
+                      width: rightTotal + 12, height: f.maxY - bottom + 40)
     }
 
     private func expand() {

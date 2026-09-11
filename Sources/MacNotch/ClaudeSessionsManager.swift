@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 
 /// Watches the event log that Claude Code's hooks append to, and exposes whether
 /// any session is currently "thinking" (working). No UI tab — just drives the
@@ -116,10 +117,33 @@ final class ClaudeSessionsManager: ObservableObject {
         if event == "SessionEnd" { status[id] = nil } else { status[id] = (working, Date()) }
     }
 
+    /// The last finish chime, held so it isn't freed mid-play.
+    private var chime: NSSound?
+
     private func recompute() {
         let now = Date()
         let working = status.values.contains { $0.working && now.timeIntervalSince($0.at) < workingTimeout }
-        if working != anyWorking { anyWorking = working }
+        if working != anyWorking {
+            let stopped = anyWorking && !working   // the coral "thinking" island just went away
+            anyWorking = working
+            if stopped { playDoneSound() }
+        }
+    }
+
+    /// Chime when Claude finishes thinking (opt-in).
+    private func playDoneSound() {
+        guard settings.trackClaude, settings.claudeSound else { return }
+        // Quiet during Focus/DND unless the user opts in.
+        if !settings.claudeSoundDuringDND && FocusMonitor.isActive { return }
+        // Quiet while the Claude app is front — you can already see it finish.
+        if settings.claudeSoundMuteWhenFront,
+           NSWorkspace.shared.frontmostApplication?.bundleIdentifier?
+               .hasPrefix("com.anthropic.") == true {
+            return
+        }
+        let s = NSSound(named: settings.claudeSoundName) ?? NSSound(named: "Funk")
+        chime = s
+        s?.stop(); s?.play()
     }
 
     // MARK: - Setup

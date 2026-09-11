@@ -19,7 +19,10 @@ struct NotchRootView: View {
     static let panelHeightTall: CGFloat = 430
     static func expandedHeight(_ tall: Bool) -> CGFloat { tall ? panelHeightTall : panelHeight }
 
-    private let timerPillW: CGFloat = 70
+    static let timerPillWidth: CGFloat = 70
+    static let pomodoroControlsWidth: CGFloat = 94   // inline pause / next / cancel strip
+    private let timerPillW = NotchRootView.timerPillWidth
+    private let buttonsW = NotchRootView.pomodoroControlsWidth
     private let eqW: CGFloat = 40
     private let claudeW: CGFloat = 20   // small coral island; the pulsing dot sits centered
     // Extra black bled onto the menu bar on each side, to hide the 1px seam
@@ -32,12 +35,16 @@ struct NotchRootView: View {
 
     private var notchW: CGFloat { metrics.notchWidth }
     private var notchH: CGFloat { metrics.notchHeight }
-    private var running: Bool { pomodoro.isRunning }
+    /// A pomodoro session exists (running or paused) — the collapsed pill stays up.
+    private var timerActive: Bool { !state.expanded && pomodoro.isActive }
     private var playing: Bool { media.isPlaying }
     /// A track is loaded but paused.
     private var paused: Bool { !state.expanded && media.source != .none && !media.isPlaying }
 
-    private var rightExt: CGFloat { (!state.expanded && running) ? timerPillW : 0 }
+    private var rightExt: CGFloat {
+        guard timerActive else { return 0 }
+        return timerPillW + (state.pomodoroControls ? buttonsW : 0)
+    }
 
     /// Coral "Claude is thinking" island, shown while ≥1 session is working.
     private var showClaude: Bool { !state.expanded && settings.trackClaude && claude.anyWorking }
@@ -84,7 +91,8 @@ struct NotchRootView: View {
                 .offset(x: centerShift)
                 .animation(.spring(response: 0.26, dampingFraction: 0.86), value: state.expanded)
                 .animation(.spring(response: 0.28, dampingFraction: 0.72), value: state.alert)
-                .animation(.spring(response: 0.3, dampingFraction: 0.78), value: running)
+                .animation(.spring(response: 0.3, dampingFraction: 0.78), value: pomodoro.isActive)
+                .animation(.spring(response: 0.3, dampingFraction: 0.78), value: state.pomodoroControls)
                 .animation(.spring(response: 0.3, dampingFraction: 0.78), value: playing)
                 .animation(.spring(response: 0.3, dampingFraction: 0.78), value: paused)
                 .animation(.spring(response: 0.3, dampingFraction: 0.78), value: showClaude)
@@ -160,20 +168,60 @@ struct NotchRootView: View {
             }
             .frame(width: claudeExt)
 
-            // Right extension — running countdown.
+            // Right extension — countdown pill, plus inline controls on hover.
             ZStack {
-                if running {
-                    Text(formatTime(pomodoro.timeRemaining))
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(phaseColor(pomodoro.phase))
-                        .transition(.opacity)
+                if pomodoro.isActive {
+                    HStack(spacing: 6) {
+                        pomodoroTime
+                        if state.pomodoroControls {
+                            pomodoroButtons
+                                .transition(.move(edge: .trailing).combined(with: .opacity))
+                        }
+                    }
+                    .transition(.opacity)
                 }
             }
             .frame(width: rightExt)
         }
         .frame(height: notchH)
         .padding(.top, Self.topOvershoot)   // keep content below the extended black top
+    }
+
+    /// Collapsed countdown. Blinks gently while paused so it's clear the timer is
+    /// on hold (not counting down).
+    private var pomodoroTime: some View {
+        TimelineView(.animation(paused: pomodoro.isRunning)) { tl in
+            let t = tl.date.timeIntervalSinceReferenceDate
+            let blink = pomodoro.isRunning ? 1.0 : 0.45 + 0.45 * (0.5 + 0.5 * sin(t * 3.2))
+            Text(formatTime(pomodoro.timeRemaining))
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(phaseColor(pomodoro.phase))
+                .opacity(blink)
+        }
+        .fixedSize()
+        .contentShape(Rectangle())
+        .onTapGesture { pomodoro.toggle() }   // click the time itself to pause / resume
+    }
+
+    private var pomodoroButtons: some View {
+        HStack(spacing: 4) {
+            pomoButton(pomodoro.isRunning ? "pause.fill" : "play.fill") { pomodoro.toggle() }
+            pomoButton("forward.fill") { pomodoro.skip() }
+            pomoButton("xmark") { pomodoro.cancel() }
+        }
+    }
+
+    private func pomoButton(_ icon: String, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 10, weight: .bold))
+                .frame(width: 26, height: 20)
+                .foregroundStyle(.white)
+                .background(Color.white.opacity(0.16))
+                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 }
 

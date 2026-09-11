@@ -51,7 +51,7 @@ struct ExpandedPanel: View {
                 case .timer: PomodoroPanel(model: modules.pomodoro, claude: modules.claude)
                 case .tasks: TodoPanel(store: modules.todo, state: state)
                 case .buffer: BufferPanel(manager: modules.buffer, state: state)
-                case .screenTime: ScreenTimePanel(usage: modules.usage, state: state)
+                case .screenTime: ScreenTimePanel(usage: modules.usage, state: state, settings: settings)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

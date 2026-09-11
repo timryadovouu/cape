@@ -3,6 +3,7 @@ import SwiftUI
 struct ScreenTimePanel: View {
     @ObservedObject var usage: AppUsageTracker
     @ObservedObject var state: NotchState
+    @ObservedObject var settings: Settings
     @State private var offset = 0                 // 0 = today, -1 = yesterday…
     @State private var cached: DayStats? = nil     // loaded stats for a past day
     @State private var earliest = 0
@@ -32,7 +33,7 @@ struct ScreenTimePanel: View {
             } else {
                 ScrollView {
                     VStack(spacing: 7) {
-                        ForEach(stats.apps.prefix(8)) { row($0) }
+                        ForEach(stats.apps.prefix(settings.screenTimeAppCount)) { row($0) }
                     }
                 }
             }

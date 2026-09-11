@@ -26,10 +26,17 @@ final class Settings: ObservableObject {
 
     // MARK: Screen Time
     @Published var screenTimeRetentionDays: Int { didSet { d.set(screenTimeRetentionDays, forKey: "screenTimeRetentionDays") } }
+    @Published var screenTimeAppCount: Int { didSet { d.set(screenTimeAppCount, forKey: "screenTimeAppCount") } }
 
     // MARK: General
     @Published var launchAtLogin: Bool { didSet { applyLoginItem() } }
     @Published var trackClaude: Bool { didSet { d.set(trackClaude, forKey: "trackClaude") } }
+
+    // MARK: Claude
+    @Published var claudeSound: Bool { didSet { d.set(claudeSound, forKey: "claudeSound") } }
+    @Published var claudeSoundName: String { didSet { d.set(claudeSoundName, forKey: "claudeSoundName") } }
+    @Published var claudeSoundDuringDND: Bool { didSet { d.set(claudeSoundDuringDND, forKey: "claudeSoundDuringDND") } }
+    @Published var claudeSoundMuteWhenFront: Bool { didSet { d.set(claudeSoundMuteWhenFront, forKey: "claudeSoundMuteWhenFront") } }
 
     private let d = UserDefaults.standard
 
@@ -55,8 +62,13 @@ final class Settings: ObservableObject {
         soundDuringDND = d.object(forKey: "soundDuringDND") as? Bool ?? true
 
         screenTimeRetentionDays = d.object(forKey: "screenTimeRetentionDays") as? Int ?? 365
+        screenTimeAppCount = d.object(forKey: "screenTimeAppCount") as? Int ?? 8
 
         trackClaude = d.object(forKey: "trackClaude") as? Bool ?? false
+        claudeSound = d.object(forKey: "claudeSound") as? Bool ?? false
+        claudeSoundName = d.string(forKey: "claudeSoundName") ?? "Glass"
+        claudeSoundDuringDND = d.object(forKey: "claudeSoundDuringDND") as? Bool ?? true
+        claudeSoundMuteWhenFront = d.object(forKey: "claudeSoundMuteWhenFront") as? Bool ?? true
         launchAtLogin = (SMAppService.mainApp.status == .enabled)
     }
 

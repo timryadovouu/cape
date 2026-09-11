@@ -54,11 +54,11 @@ executable — pure SwiftUI + AppKit, **no third-party dependencies**.
 
 | Module | What it does |
 | --- | --- |
-| ⏱ **Timer** | Pomodoro with focus presets (5 / 10 / 15 / 25 / 30 / 60 min), a long break every 4 sessions. Configurable break lengths and a completion sound — pick any system sound (hover to preview) and choose whether it still plays during a Focus. A live countdown shows to the right of the notch; each phase change slides a **Focus / Break** alert in from the left. |
-| 📋 **Buffer** | A persistent clipboard. Everything you copy is saved as a **real file** under the buffer folder, in a per-day `YYYY-MM-DD` subfolder — text, images, and any copied files. Click an entry to copy it back, or **drag it straight out** to Finder / any app. Per-row copy & delete on hover; "Finder" opens the folder, "Clear day" wipes today. Deletions made directly in the folder show up automatically. |
+| ⏱ **Timer** | Pomodoro with focus presets (5 / 10 / 15 / 25 / 30 / 60 min), a long break every 4 sessions. Configurable break lengths and a completion sound — pick any system sound (hover to preview) and choose whether it still plays during a Focus. A live countdown shows to the right of the notch; each phase change slides a **Focus / Break** alert in from the left. **Hover the collapsed countdown for inline pause / next / cancel** (or click the time to pause) — no need to open the panel. |
+| 📋 **Buffer** | A persistent clipboard. Everything you copy is saved as a **real file** under the buffer folder, in a per-day `YYYY-MM-DD` subfolder — text, images, and any copied files. Click an entry to copy it back, or **drag it straight out** to Finder / any app. Per-row **star / copy / delete** on hover — **starred items pin to the top and survive** retention, "Clear day", and end-of-day wipes. "Finder" opens the folder, "Clear day" wipes today. Deletions made directly in the folder show up automatically. |
 | 🎵 **Media** | Now-playing + transport for **Spotify** (AppleScript) and **cmus** (`cmus-remote`). Play/pause reacts instantly. While something plays, a little **equalizer** pulses to the left of the notch; pause it and a coral ⏸ takes its place. |
 | ✅ **Tasks** | A local to-do list: add, complete, delete, restore. **Undone tasks stay on top, completed ones sink to the bottom.** Copy a task's text, or move it to a trash that keeps deleted items for a while. |
-| ⏳ **Screen Time** | Local, on-device usage tracking: it credits the frontmost app every second and shows ranked apps (with icons), total time and switch count. **Each day is kept as its own snapshot — browse past days with ◀ / ▶**, and toggle a bar chart of the current week (Mon–Sun). Resets at midnight; history retention is configurable. |
+| ⏳ **Screen Time** | Local, on-device usage tracking: it credits the frontmost app every second and shows ranked apps (with icons), total time and switch count — **how many apps to list is up to you** (top 5–20 or all). **Each day is kept as its own snapshot — browse past days with ◀ / ▶**, and toggle a bar chart of the current week (Mon–Sun). Resets at midnight; history retention is configurable. |
 
 The **Tasks, Buffer and Screen Time** panels have a little home-indicator grabber
 at the bottom — tap it to grow the panel vertically (and again to shrink).
@@ -77,7 +77,8 @@ Even when closed, the brow stays useful:
 
 - **Left** — a pulsing **equalizer** while music plays (a coral ⏸ when paused), or a
   brief coral flash on copy and a **Focus / Break** alert on a timer phase change.
-- **Right** — the Pomodoro **countdown** while a timer runs, and a small pulsing
+- **Right** — the Pomodoro **countdown** while a timer runs (hover it for inline
+  **pause / next / cancel**, or click the time to pause), and a small pulsing
   **coral blob** whenever a Claude Code session is thinking (see below).
 
 ## Claude Code integration
@@ -92,6 +93,8 @@ gives you two things:
   when it resets — **"Claude limits reset at HH:MM"** (or **"Claude will be ready
   at HH:MM"** when it's actually maxed out) — and **"Claude is ready!"** once it
   frees up. The reset time is read back from disk, so it survives quitting Claude.
+- Optionally, a **sound when Claude finishes thinking** — any system sound, with
+  toggles to stay quiet during Focus/DND or while the Claude app is in front.
 
 **How it works.** Enabling the toggle merges a few [hooks](https://docs.claude.com/en/docs/claude-code/hooks)
 and a `statusLine` command into `~/.claude/settings.json` (backed up to
@@ -115,9 +118,10 @@ Everything stays local — nothing is sent anywhere.
 The coral **gear** toggles a standalone window:
 
 - **General** — Launch at login and Track Claude Code.
+- **Claude** — an optional sound when Claude finishes (its own system sound, plus Focus/DND and *mute while the Claude app is in front* toggles).
 - **Modules** — enable/disable and reorder the tabs in the rail.
 - **Timer** — short/long break lengths, the end-of-session sound (any system sound, hover to preview), and whether it plays during a Focus.
-- **Screen Time** — how long to keep daily history (default 1 year).
+- **Screen Time** — how long to keep daily history (default 1 year), and how many apps the list shows.
 - **Buffer** — folder location, auto-clear age, or clear-at-end-of-day.
 - **Notch** — reset-to-default-tab delay and which tab is the default.
 

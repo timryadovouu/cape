@@ -18,6 +18,7 @@ struct BufferPanel: View {
                     VStack(spacing: 6) {
                         ForEach(manager.recent) { item in
                             BufferRow(item: item,
+                                      onFavorite: { manager.toggleFavorite(item) },
                                       onCopy: { manager.copyToPasteboard(item) },
                                       onDelete: { manager.delete(item) })
                         }
@@ -60,9 +61,12 @@ struct BufferPanel: View {
 /// the file out.
 private struct BufferRow: View {
     let item: BufferItem
+    let onFavorite: () -> Void
     let onCopy: () -> Void
     let onDelete: () -> Void
     @State private var hovering = false
+
+    private static let gold = Color(red: 1.0, green: 0.78, blue: 0.28)
 
     var body: some View {
         HStack(spacing: 10) {
@@ -83,9 +87,18 @@ private struct BufferRow: View {
 
             if hovering {
                 HStack(spacing: 6) {
+                    rowButton(item.isFavorite ? "star.fill" : "star",
+                              help: item.isFavorite ? "Unfavorite" : "Favorite — keep it, pinned on top",
+                              gold: item.isFavorite, action: onFavorite)
                     rowButton("doc.on.doc", help: "Copy", action: onCopy)
                     rowButton("trash", help: "Delete", danger: true, action: onDelete)
                 }
+            } else if item.isFavorite {
+                // At rest, still show which items are starred.
+                Image(systemName: "star.fill")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Self.gold)
+                    .frame(width: 26, height: 26)
             }
         }
         .padding(.horizontal, 10)
@@ -100,15 +113,19 @@ private struct BufferRow: View {
     }
 
     private func rowButton(_ icon: String, help: String, danger: Bool = false,
-                           action: @escaping () -> Void) -> some View {
+                           gold: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: 11, weight: .medium))
                 .frame(width: 26, height: 26)
-                .foregroundStyle(danger ? Color(red: 1, green: 0.5, blue: 0.5) : .white.opacity(0.75))
+                .foregroundStyle(gold ? Self.gold
+                                 : danger ? Color(red: 1, green: 0.5, blue: 0.5)
+                                 : .white.opacity(0.75))
                 .background(
                     RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .fill(danger ? Color.red.opacity(0.18) : Color.white.opacity(0.13))
+                        .fill(gold ? Self.gold.opacity(0.18)
+                              : danger ? Color.red.opacity(0.18)
+                              : Color.white.opacity(0.13))
                 )
         }
         .buttonStyle(.plain)
