@@ -11,7 +11,8 @@ permissions:
 jobs:
   release:
     name: Build & publish release
-    runs-on: macos-14
+    # macOS 15 runner → Xcode 16 / macOS 15 SDK, required to compile WhisperKit.
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v5
 
