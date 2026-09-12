@@ -7,11 +7,13 @@ final class SettingsWindowController {
     private let settings: Settings
     private let buffer: BufferManager
     private let claude: ClaudeSessionsManager
+    private let voice: VoiceDictation
 
-    init(settings: Settings, buffer: BufferManager, claude: ClaudeSessionsManager) {
+    init(settings: Settings, buffer: BufferManager, claude: ClaudeSessionsManager, voice: VoiceDictation) {
         self.settings = settings
         self.buffer = buffer
         self.claude = claude
+        self.voice = voice
     }
 
     func show() {
@@ -25,7 +27,7 @@ final class SettingsWindowController {
             w.title = "mac-notch Settings"
             w.isReleasedWhenClosed = false
             w.contentView = NSHostingView(
-                rootView: SettingsView(settings: settings, buffer: buffer, claude: claude)
+                rootView: SettingsView(settings: settings, voice: voice, buffer: buffer, claude: claude)
             )
             // Place it below the expanded notch so opening it from the notch
             // doesn't overlap the panel.
@@ -55,6 +57,7 @@ final class SettingsWindowController {
 
 struct SettingsView: View {
     @ObservedObject var settings: Settings
+    @ObservedObject var voice: VoiceDictation
     let buffer: BufferManager
     let claude: ClaudeSessionsManager
 
@@ -106,6 +109,46 @@ struct SettingsView: View {
                     }
                     Toggle("Play sound during Do Not Disturb / Focus", isOn: $settings.soundDuringDND)
                 }
+            }
+
+            Section("Voice") {
+                Picker("Dictation model", selection: $settings.voiceModel) {
+                    ForEach(VoiceModels.options, id: \.id) {
+                        Text($0.label + (Transcriber.isModelDownloaded($0.id) ? "  ✓" : "")).tag($0.id)
+                    }
+                }
+                Picker("Language", selection: $settings.voiceLanguage) {
+                    ForEach(VoiceModels.languages, id: \.id) { Text($0.label).tag($0.id) }
+                }
+                Toggle("Translate to English", isOn: $settings.voiceTranslate)
+                Toggle("Global shortcut — double-tap ⌥ Option", isOn: $settings.voiceHotkey)
+                    .onChange(of: settings.voiceHotkey) { on in voice.applyHotkey(enabled: on) }
+                Toggle("Preload model at launch (faster first dictation)", isOn: $settings.voicePreload)
+
+                if voice.status == .downloading {
+                    HStack(spacing: 10) {
+                        ProgressView(value: voice.downloadProgress)
+                        Text("\(Int(voice.downloadProgress * 100))%")
+                            .font(.caption).monospacedDigit()
+                            .foregroundStyle(.secondary)
+                    }
+                } else if Transcriber.isModelDownloaded(settings.voiceModel) {
+                    HStack {
+                        Label("Model downloaded", systemImage: "checkmark.circle.fill")
+                            .font(.callout).foregroundStyle(.green)
+                        Spacer()
+                        Button(role: .destructive) { confirmDeleteModel() } label: {
+                            Image(systemName: "trash")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Delete this model from disk (re-download any time)")
+                    }
+                } else {
+                    Button("Download model now") { voice.prepareModel() }
+                }
+
+                Text("Model is downloaded once (bigger = more accurate, more RAM). Auto-detect can misread some languages (e.g. Russian) — pick it explicitly if needed. A transcript starting with “заметка”/“note” goes to the Tasks list. The global shortcut needs Accessibility permission.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
 
             Section("Screen Time") {
@@ -182,6 +225,16 @@ struct SettingsView: View {
         }
     }
 
+    private func confirmDeleteModel() {
+        let alert = NSAlert()
+        alert.messageText = "Delete the dictation model?"
+        alert.informativeText = "It will be removed from disk. You can re-download it any time from here."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Delete")
+        alert.addButton(withTitle: "Cancel")
+        if alert.runModal() == .alertFirstButtonReturn { voice.deleteModel() }
+    }
+
     private func pickFolder() {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
@@ -196,60 +249,27 @@ struct SettingsView: View {
     }
 }
 
-/// macOS-style sound chooser: a compact control showing the current sound; click
-/// it to drop down the list, and only there does hovering preview a sound — so
-/// scrolling the Settings form never makes noise.
+/// Sound chooser mirroring macOS System Settings › Sound: a native menu picker
+/// plus a ▶ button that previews the selected sound (no hover needed).
 struct SoundPicker: View {
     @Binding var selection: String
-    @State private var open = false
-    @State private var hovered: String?
 
     var body: some View {
-        HStack {
+        HStack(spacing: 8) {
             Text("Sound")
             Spacer()
-            Button { open.toggle() } label: {
-                HStack(spacing: 6) {
-                    Text(selection)
-                    Image(systemName: "chevron.up.chevron.down")
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                }
+            Picker("", selection: $selection) {
+                ForEach(SystemSounds.available, id: \.self) { Text($0).tag($0) }
             }
-            .popover(isPresented: $open, arrowEdge: .bottom) { list }
-        }
-    }
-
-    private var list: some View {
-        ScrollView {
-            VStack(spacing: 1) {
-                ForEach(SystemSounds.available, id: \.self) { row($0) }
+            .labelsHidden()
+            .fixedSize()
+            Button { SystemSounds.preview(selection) } label: {
+                Image(systemName: "play.circle")
+                    .font(.system(size: 16))
+                    .foregroundStyle(.secondary)
             }
-            .padding(4)
+            .buttonStyle(.plain)
+            .help("Preview this sound")
         }
-        .frame(width: 210, height: min(CGFloat(SystemSounds.available.count) * 27 + 8, 320))
-    }
-
-    private func row(_ name: String) -> some View {
-        let selected = name == selection
-        let hot = hovered == name
-        return HStack(spacing: 8) {
-            Image(systemName: "checkmark")
-                .font(.system(size: 11, weight: .bold))
-                .opacity(selected ? 1 : 0)
-                .frame(width: 12)
-            Text(name).font(.system(size: 13))
-            Spacer()
-        }
-        .padding(.vertical, 5).padding(.horizontal, 8)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 5)
-            .fill(hot ? Color.accentColor.opacity(0.25) : .clear))
-        .contentShape(Rectangle())
-        .onHover { h in
-            if h { hovered = name; SystemSounds.preview(name) }
-            else if hovered == name { hovered = nil }
-        }
-        .onTapGesture { selection = name; open = false }
     }
 }

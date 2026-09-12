@@ -19,7 +19,7 @@
   <img src="https://img.shields.io/badge/macOS-13%2B-000000?logo=apple&logoColor=white" alt="macOS 13+" />
   <img src="https://img.shields.io/badge/Swift-5.9-FA834D?logo=swift&logoColor=white" alt="Swift 5.9" />
   <img src="https://img.shields.io/badge/UI-SwiftUI%20%2B%20AppKit-3178C6" alt="SwiftUI + AppKit" />
-  <img src="https://img.shields.io/badge/dependencies-none-2ecc71" alt="no dependencies" />
+  <img src="https://img.shields.io/badge/dependency-WhisperKit-FA834D" alt="1 dependency: WhisperKit" />
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license" />
 </p>
 
@@ -30,7 +30,9 @@
 **mac-notch** turns the empty space around the camera notch into a small control
 center. Everything is a module you jump between from a horizontal icon rail; the
 coral gear opens a proper Settings window. It's a single Swift Package
-executable — pure SwiftUI + AppKit, **no third-party dependencies**.
+executable — SwiftUI + AppKit, with a single dependency
+([WhisperKit](https://github.com/argmaxinc/WhisperKit)) powering on-device voice
+dictation.
 
 - Runs as an **accessory app** (`LSUIElement`) — invisible in the Dock and menu bar.
 - Sits over the physical notch and morphs like the iPhone Dynamic Island.
@@ -55,7 +57,7 @@ executable — pure SwiftUI + AppKit, **no third-party dependencies**.
 | Module | What it does |
 | --- | --- |
 | ⏱ **Timer** | Pomodoro with focus presets (5 / 10 / 15 / 25 / 30 / 60 min), a long break every 4 sessions. Configurable break lengths and a completion sound — pick any system sound (hover to preview) and choose whether it still plays during a Focus. A live countdown shows to the right of the notch; each phase change slides a **Focus / Break** alert in from the left. **Hover the collapsed countdown for inline pause / next / cancel** (or click the time to pause) — no need to open the panel. |
-| 📋 **Buffer** | A persistent clipboard. Everything you copy is saved as a **real file** under the buffer folder, in a per-day `YYYY-MM-DD` subfolder — text, images, and any copied files. Click an entry to copy it back, or **drag it straight out** to Finder / any app. Per-row **star / copy / delete** on hover — **starred items pin to the top and survive** retention, "Clear day", and end-of-day wipes. "Finder" opens the folder, "Clear day" wipes today. Deletions made directly in the folder show up automatically. |
+| 📋 **Buffer** | A persistent clipboard. Everything you copy is saved as a **real file** under the buffer folder, in a per-day `YYYY-MM-DD` subfolder — text, images, and any copied files. Click an entry to copy it back, or **drag it straight out** to Finder / any app. Per-row **star / copy / delete** on hover — **starred items pin to the top and survive** retention, "Clear day", and end-of-day wipes. "Finder" opens the folder, "Clear day" wipes today. Deletions made directly in the folder show up automatically. A **mic** button dictates speech straight into the buffer (see *Voice dictation*). |
 | 🎵 **Media** | Now-playing + transport for **Spotify** (AppleScript) and **cmus** (`cmus-remote`). Play/pause reacts instantly. While something plays, a little **equalizer** pulses to the left of the notch; pause it and a coral ⏸ takes its place. |
 | ✅ **Tasks** | A local to-do list: add, complete, delete, restore. **Undone tasks stay on top, completed ones sink to the bottom.** Copy a task's text, or move it to a trash that keeps deleted items for a while. |
 | ⏳ **Screen Time** | Local, on-device usage tracking: it credits the frontmost app every second and shows ranked apps (with icons), total time and switch count — **how many apps to list is up to you** (top 5–20 or all). **Each day is kept as its own snapshot — browse past days with ◀ / ▶**, and toggle a bar chart of the current week (Mon–Sun). Resets at midnight; history retention is configurable. |
@@ -113,6 +115,26 @@ and a `statusLine` command into `~/.claude/settings.json` (backed up to
 
 Everything stays local — nothing is sent anywhere.
 
+## Voice dictation
+
+A **mic** button in the Buffer tab turns speech into text, fully **on-device** —
+nothing leaves your Mac. Tap it (or use the global shortcut), speak, and the
+transcript lands on the clipboard, ready in the buffer.
+
+- **Local Whisper** via [WhisperKit](https://github.com/argmaxinc/WhisperKit),
+  running on the Neural Engine. Pick the model in Settings (Tiny → Large v3 Turbo
+  — bigger is more accurate and uses more RAM); it's **downloaded once** and
+  warmed at launch so the first dictation is instant.
+- **Language & translation** — choose the spoken language (auto-detect can
+  misread some, e.g. Russian, so pick it explicitly) and optionally translate to
+  English.
+- **"note …" → Tasks** — a transcript starting with *note* / *заметка* is filed
+  as a task instead of going to the clipboard.
+- **Global shortcut** — double-tap **⌥ Option** to start/stop dictation from
+  anywhere (needs Accessibility permission).
+- The mic button reflects its state — recording (pulsing), loading the model,
+  transcribing — and stays disabled until a model is downloaded.
+
 ## Settings
 
 The coral **gear** toggles a standalone window:
@@ -121,6 +143,7 @@ The coral **gear** toggles a standalone window:
 - **Claude** — an optional sound when Claude finishes (its own system sound, plus Focus/DND and *mute while the Claude app is in front* toggles).
 - **Modules** — enable/disable and reorder the tabs in the rail.
 - **Timer** — short/long break lengths, the end-of-session sound (any system sound, hover to preview), and whether it plays during a Focus.
+- **Voice** — dictation model (downloaded once, with a delete button and a ✓ on the ones you have), spoken language, translate-to-English, the double-⌥ shortcut, and preloading the model at launch.
 - **Screen Time** — how long to keep daily history (default 1 year), and how many apps the list shows.
 - **Buffer** — folder location, auto-clear age, or clear-at-end-of-day.
 - **Notch** — reset-to-default-tab delay and which tab is the default.
@@ -166,12 +189,22 @@ notch to expand it. To start it automatically after a reboot, open Settings (the
 coral gear) and turn on **Launch at login**. Quit from the red **Quit** button in
 the expanded panel.
 
+## Updating
+
+There's no auto-update yet — grab a new version the same way you first installed
+it: **quit** mac-notch (the red Quit button), download the latest
+**`mac-notch.zip`**, and replace the app. Your **settings and data are kept** —
+they live in `~/Library/Application Support/MacNotch/`, not inside the app, and a
+downloaded dictation model stays too. The fresh download needs the one-time
+Gatekeeper **right-click → Open** again.
+
 ## Where data lives
 
 Everything stays on your Mac:
 
 - Clipboard buffer: `~/Library/Application Support/MacNotch/localBuffer/`
 - Tasks, Screen Time, settings: `~/Library/Application Support/MacNotch/`
+- Dictation models (only if you use Voice): `~/Documents/huggingface/`
 - Claude Code tracking (only if enabled): `~/.claude/mac-notch/`
 
 When Claude tracking is on, mac-notch also **reads** (never writes) the reset
@@ -181,7 +214,10 @@ time from the desktop app's local storage; that data stays on your Mac too.
 
 - **Media → Spotify** uses AppleScript, so macOS will ask for **Automation**
   access the first time — approve it or the track/controls won't work. **cmus**
-  needs `cmus-remote` on your `PATH`. Nothing else requires special permissions.
+  needs `cmus-remote` on your `PATH`.
+- **Voice dictation** asks for **Microphone** access on first use; the optional
+  double-⌥ shortcut also needs **Accessibility** (System Settings → Privacy &
+  Security). Downloading a dictation model uses the network once.
 
 ## Project structure
 
@@ -200,6 +236,8 @@ Sources/MacNotch/
   MediaController / AppUsageTracker /
   TodoStore / SystemStats /
   ClaudeSessionsManager               module & integration logic
+  VoiceDictation.swift                on-device dictation (WhisperKit) + mic capture
+  DoubleOptionHotkey.swift            global double-⌥ dictation shortcut
   Settings.swift / SettingsPanel.swift  settings model + window
 Resources/AppIcon.png                 app icon source
 build-app.sh                          release build → mac-notch.app

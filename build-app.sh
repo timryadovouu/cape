@@ -53,6 +53,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>LSUIElement</key>              <true/>
     <key>NSAppleEventsUsageDescription</key>
     <string>mac-notch controls Spotify playback from the notch.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>mac-notch records your voice for on-device dictation into the buffer.</string>
 </dict>
 </plist>
 PLIST

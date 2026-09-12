@@ -9,8 +9,24 @@ struct NotchMetrics {
     let notchHeight: CGFloat
     let hasRealNotch: Bool
 
+    /// The physical notch only exists on the built-in laptop display, so anchor
+    /// there: prefer a screen with a real notch, else the built-in display.
+    /// Returns nil on a desktop Mac (no built-in display).
+    static func builtInScreen() -> NSScreen? {
+        if let notched = NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 }) {
+            return notched
+        }
+        return NSScreen.screens.first { screen in
+            guard let n = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber
+            else { return false }
+            return CGDisplayIsBuiltin(n.uint32Value) != 0
+        }
+    }
+
     static func current() -> NotchMetrics {
-        let screen = NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 })
+        // Built-in screen when there is one (laptops); otherwise the main screen
+        // with a synthetic notch (desktops / external-only setups).
+        let screen = builtInScreen()
             ?? NSScreen.main
             ?? NSScreen.screens.first!
 

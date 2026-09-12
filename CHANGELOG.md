@@ -4,6 +4,29 @@ All notable changes to mac-notch are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] — 2026-09-13
+
+### Added
+- **Voice dictation** — a mic button in the Buffer tab transcribes speech to text
+  fully on-device via [WhisperKit](https://github.com/argmaxinc/WhisperKit) (Neural
+  Engine). Selectable model (Tiny → Large v3 Turbo, downloaded once and preloaded
+  at launch) and spoken language, an optional translate-to-English, a
+  *"note …"* / *"заметка …"* prefix that files the text as a task instead of the
+  clipboard, and a global **double-⌥ Option** shortcut (needs Accessibility). The
+  mic button shows recording / loading / transcribing state and stays disabled
+  until a model is downloaded; models can be deleted from Settings.
+
+### Fixed
+- **Notch on external displays** — the brow is now pinned to the built-in (notch)
+  screen and re-anchors whenever the display arrangement changes, so connecting an
+  HDMI/TV or an extended monitor no longer strands it in the middle of the other
+  screen.
+
+### Changed
+- Adds a single dependency, WhisperKit, for the on-device dictation.
+- The sound picker (Timer / Claude) now matches the native menu pickers, with a ▶
+  button to preview the selected sound.
+
 ## [0.1.3] — 2026-09-12
 
 ### Added
@@ -107,6 +130,7 @@ Initial public beta.
 - A standalone **Settings** window, Launch at login, and GitHub Actions CI +
   releases.
 
+[0.2.0]: https://github.com/timryadovouu/mac-notch/releases/tag/v0.2.0
 [0.1.3]: https://github.com/timryadovouu/mac-notch/releases/tag/v0.1.3
 [0.1.2]: https://github.com/timryadovouu/mac-notch/releases/tag/v0.1.2
 [0.1.1]: https://github.com/timryadovouu/mac-notch/releases/tag/v0.1.1

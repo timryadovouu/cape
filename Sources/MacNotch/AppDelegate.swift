@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         setupMainMenu()
         controller = NotchController(modules: modules)
+        modules.voice.preloadIfReady()   // warm the dictation model so the first use isn't slow
     }
 
     /// A minimal main menu. It stays hidden (accessory app), but wiring up the

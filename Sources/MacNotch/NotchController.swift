@@ -21,8 +21,10 @@ final class NotchController {
     private let panel: NotchPanel
     private let state: NotchState
     private let modules: AppModules
-    private let metrics: NotchMetrics
+    private var metrics: NotchMetrics
+    private var hosting: FirstMouseHostingView<NotchRootView>!
     private var pollTimer: Timer?
+    private var screenObserver: NSObjectProtocol?
 
     private let windowWidth: CGFloat = 640
     // Tall enough to hold the expanded panel in its "tall" (Tasks-grown) size.
@@ -50,13 +52,11 @@ final class NotchController {
         panel.isMovable = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
 
-        let root = NotchRootView(state: state, pomodoro: modules.pomodoro,
-                                 media: modules.media, claude: modules.claude,
-                                 settings: modules.settings, modules: modules, metrics: metrics)
-        let hosting = FirstMouseHostingView(rootView: root)
+        let hosting = FirstMouseHostingView(rootView: makeRootView())
         hosting.frame = panel.contentView!.bounds
         hosting.autoresizingMask = [.width, .height]
         panel.contentView = hosting
+        self.hosting = hosting
 
         modules.buffer.onNewItem = { [weak self] _ in
             self?.state.flashCopy()
@@ -68,6 +68,29 @@ final class NotchController {
         positionWindow()
         panel.orderFrontRegardless()
         startPolling()
+
+        // Displays changed (external monitor/TV connected, arrangement or primary
+        // display changed) shifts global coordinates and can strand the brow on the
+        // wrong screen — re-anchor to the built-in notch screen whenever that happens.
+        screenObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification,
+            object: nil, queue: .main) { [weak self] _ in self?.screensChanged() }
+    }
+
+    deinit {
+        if let screenObserver { NotificationCenter.default.removeObserver(screenObserver) }
+    }
+
+    private func makeRootView() -> NotchRootView {
+        NotchRootView(state: state, pomodoro: modules.pomodoro,
+                      media: modules.media, claude: modules.claude,
+                      settings: modules.settings, modules: modules, metrics: metrics)
+    }
+
+    private func screensChanged() {
+        metrics = .current()               // re-find the built-in notch screen
+        hosting.rootView = makeRootView()  // pick up the new notch size, if any
+        positionWindow()                   // re-anchor to that screen's current coords
     }
 
     private func positionWindow() {

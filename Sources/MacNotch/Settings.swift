@@ -21,6 +21,13 @@ final class Settings: ObservableObject {
     @Published var shortBreakMinutes: Int { didSet { d.set(shortBreakMinutes, forKey: "shortBreakMinutes") } }
     @Published var longBreakMinutes: Int { didSet { d.set(longBreakMinutes, forKey: "longBreakMinutes") } }
     @Published var pomodoroSound: Bool { didSet { d.set(pomodoroSound, forKey: "pomodoroSound") } }
+
+    // MARK: Voice
+    @Published var voiceModel: String { didSet { d.set(voiceModel, forKey: "voiceModel") } }
+    @Published var voiceLanguage: String { didSet { d.set(voiceLanguage, forKey: "voiceLanguage") } }
+    @Published var voiceTranslate: Bool { didSet { d.set(voiceTranslate, forKey: "voiceTranslate") } }
+    @Published var voiceHotkey: Bool { didSet { d.set(voiceHotkey, forKey: "voiceHotkey") } }
+    @Published var voicePreload: Bool { didSet { d.set(voicePreload, forKey: "voicePreload") } }
     @Published var pomodoroSoundName: String { didSet { d.set(pomodoroSoundName, forKey: "pomodoroSoundName") } }
     @Published var soundDuringDND: Bool { didSet { d.set(soundDuringDND, forKey: "soundDuringDND") } }
 
@@ -58,6 +65,11 @@ final class Settings: ObservableObject {
         shortBreakMinutes = d.object(forKey: "shortBreakMinutes") as? Int ?? 5
         longBreakMinutes = d.object(forKey: "longBreakMinutes") as? Int ?? 15
         pomodoroSound = d.object(forKey: "pomodoroSound") as? Bool ?? true
+        voiceModel = d.string(forKey: "voiceModel") ?? VoiceModels.defaultModel
+        voiceLanguage = d.string(forKey: "voiceLanguage") ?? VoiceModels.defaultLanguage
+        voiceTranslate = d.object(forKey: "voiceTranslate") as? Bool ?? false
+        voiceHotkey = d.object(forKey: "voiceHotkey") as? Bool ?? false
+        voicePreload = d.object(forKey: "voicePreload") as? Bool ?? true
         pomodoroSoundName = d.string(forKey: "pomodoroSoundName") ?? "Funk"
         soundDuringDND = d.object(forKey: "soundDuringDND") as? Bool ?? true
 

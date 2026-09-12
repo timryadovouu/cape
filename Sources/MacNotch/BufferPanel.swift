@@ -3,6 +3,7 @@ import SwiftUI
 struct BufferPanel: View {
     @ObservedObject var manager: BufferManager
     @ObservedObject var state: NotchState
+    @ObservedObject var voice: VoiceDictation
 
     var body: some View {
         VStack(spacing: 8) {
@@ -28,6 +29,28 @@ struct BufferPanel: View {
             }
 
             HStack(spacing: 8) {
+                Button { voice.toggle() } label: {
+                    Group {
+                        switch voice.status {
+                        case .downloading, .loading:
+                            // Model downloading / loading — progress lives in Settings.
+                            ProgressView().controlSize(.small).scaleEffect(0.7)
+                        case .recording:
+                            RecordingMic()
+                        default:
+                            Image(systemName: voiceIcon).font(.system(size: 13, weight: .semibold))
+                        }
+                    }
+                    .frame(width: 40, height: 32)
+                    .foregroundStyle(voiceTint)
+                    .background(voiceTint.opacity(0.16))
+                    .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                    .opacity(micEnabled ? 1 : 0.5)
+                }
+                .buttonStyle(.plain)
+                .disabled(!micEnabled)
+                .help(voiceHelp)
+
                 Button(action: manager.openInFinder) {
                     Label("Finder", systemImage: "folder")
                         .font(.system(size: 12, weight: .medium))
@@ -52,8 +75,66 @@ struct BufferPanel: View {
                 .help("Delete today's whole buffer")
             }
 
+            if voice.status == .idle && !voice.modelDownloaded {
+                Text("Download the dictation model in Settings › Voice to dictate.")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.white.opacity(0.4))
+                    .multilineTextAlignment(.center)
+            }
+
             GrabberBar(state: state)
         }
+    }
+
+    private var micEnabled: Bool {
+        (voice.status == .idle && voice.modelDownloaded) || voice.status == .recording
+    }
+
+    private var voiceIcon: String {
+        switch voice.status {
+        case .idle: return "mic"
+        case .recording: return "mic.fill"
+        case .transcribing: return "waveform"
+        case .downloading, .loading: return "arrow.down"
+        }
+    }
+
+    private var voiceTint: Color {
+        switch voice.status {
+        case .idle: return .white.opacity(0.75)
+        case .recording: return Color(red: 1, green: 0.4, blue: 0.4)
+        case .transcribing, .downloading, .loading: return .coral
+        }
+    }
+
+    private var voiceHelp: String {
+        switch voice.status {
+        case .idle: return voice.modelDownloaded
+            ? "Dictate — speak, then it's transcribed onto the clipboard"
+            : "Download the dictation model in Settings › Voice first"
+        case .recording: return "Recording — tap to stop"
+        case .transcribing: return "Transcribing…"
+        case .downloading: return "Downloading model… \(Int(voice.downloadProgress * 100))%"
+        case .loading: return "Loading model…"
+        }
+    }
+}
+
+/// The mic while recording: a gentle breathing pulse so it's obvious the app is
+/// listening — clearer than a static icon.
+private struct RecordingMic: View {
+    @State private var pulse = false
+
+    var body: some View {
+        Image(systemName: "mic.fill")
+            .font(.system(size: 13, weight: .semibold))
+            .scaleEffect(pulse ? 1.15 : 0.9)
+            .opacity(pulse ? 1.0 : 0.5)
+            .onAppear {
+                withAnimation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true)) {
+                    pulse = true
+                }
+            }
     }
 }
 

@@ -10,7 +10,8 @@ final class AppModules {
     let todo: TodoStore
     let media: MediaController
     let claude: ClaudeSessionsManager
-    lazy var settingsWindow = SettingsWindowController(settings: settings, buffer: buffer, claude: claude)
+    let voice: VoiceDictation
+    lazy var settingsWindow = SettingsWindowController(settings: settings, buffer: buffer, claude: claude, voice: voice)
 
     init() {
         let settings = Settings()
@@ -22,6 +23,7 @@ final class AppModules {
         todo = TodoStore()
         media = MediaController()
         claude = ClaudeSessionsManager(settings: settings)
+        voice = VoiceDictation(settings: settings, todo: todo)
     }
 
     /// Shared support directory: ~/Library/Application Support/MacNotch
