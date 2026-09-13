@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to mac-notch are documented here. The format is based on
+All notable changes to Cape are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/).
 
@@ -59,12 +59,12 @@ All notable changes to mac-notch are documented here. The format is based on
 ### Fixed
 - Claude limit line: a stale terminal `statusLine` snapshot no longer shadows the
   live desktop reset time. Once the terminal data goes stale (its session isn't
-  actively rendering), mac-notch falls back to the desktop app's current value —
+  actively rendering), Cape falls back to the desktop app's current value —
   which matters when you use both terminal Claude Code and the desktop app.
 
 ## [0.1.0] — 2026-09-06
 
-First stable release. mac-notch is a Dynamic-Island-style hub that lives over the
+First stable release. Cape is a Dynamic-Island-style hub that lives over the
 MacBook notch — hover to reveal, no Dock or menu-bar icon, zero dependencies.
 
 ### Features
@@ -130,10 +130,10 @@ Initial public beta.
 - A standalone **Settings** window, Launch at login, and GitHub Actions CI +
   releases.
 
-[0.2.0]: https://github.com/timryadovouu/mac-notch/releases/tag/v0.2.0
-[0.1.3]: https://github.com/timryadovouu/mac-notch/releases/tag/v0.1.3
-[0.1.2]: https://github.com/timryadovouu/mac-notch/releases/tag/v0.1.2
-[0.1.1]: https://github.com/timryadovouu/mac-notch/releases/tag/v0.1.1
-[0.1.0]: https://github.com/timryadovouu/mac-notch/releases/tag/v0.1.0
-[0.1.0-beta.2]: https://github.com/timryadovouu/mac-notch/releases/tag/v0.1.0-beta.2
-[0.1.0-beta.1]: https://github.com/timryadovouu/mac-notch/releases/tag/v0.1.0-beta.1
+[0.2.0]: https://github.com/timryadovouu/cape/releases/tag/v0.2.0
+[0.1.3]: https://github.com/timryadovouu/cape/releases/tag/v0.1.3
+[0.1.2]: https://github.com/timryadovouu/cape/releases/tag/v0.1.2
+[0.1.1]: https://github.com/timryadovouu/cape/releases/tag/v0.1.1
+[0.1.0]: https://github.com/timryadovouu/cape/releases/tag/v0.1.0
+[0.1.0-beta.2]: https://github.com/timryadovouu/cape/releases/tag/v0.1.0-beta.2
+[0.1.0-beta.1]: https://github.com/timryadovouu/cape/releases/tag/v0.1.0-beta.1

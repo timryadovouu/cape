@@ -124,7 +124,7 @@ struct ExpandedPanel: View {
                     .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
             }
             .buttonStyle(.plain)
-            .help("Quit mac-notch")
+            .help("Quit Cape")
         }
     }
 

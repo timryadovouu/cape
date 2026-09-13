@@ -24,7 +24,7 @@ final class SettingsWindowController {
                 backing: .buffered,
                 defer: false
             )
-            w.title = "mac-notch Settings"
+            w.title = "Cape Settings"
             w.isReleasedWhenClosed = false
             w.contentView = NSHostingView(
                 rootView: SettingsView(settings: settings, voice: voice, buffer: buffer, claude: claude)

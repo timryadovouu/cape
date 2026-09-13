@@ -29,7 +29,7 @@ final class ClaudeSessionsManager: ObservableObject {
     private var desktopReset: Date?
 
     private let home = FileManager.default.homeDirectoryForCurrentUser
-    private var dir: URL { home.appendingPathComponent(".claude/mac-notch") }
+    private var dir: URL { home.appendingPathComponent(".claude/cape") }
     private var eventsFile: URL { dir.appendingPathComponent("events.jsonl") }
     private var rateLimitFile: URL { dir.appendingPathComponent("ratelimit.json") }
     private var settingsFile: URL { home.appendingPathComponent(".claude/settings.json") }
@@ -160,7 +160,7 @@ final class ClaudeSessionsManager: ObservableObject {
         }
 
         var hooks = root["hooks"] as? [String: Any] ?? [:]
-        let cmd = "mkdir -p \"$HOME/.claude/mac-notch\" && { cat; echo; } >> \"$HOME/.claude/mac-notch/events.jsonl\""
+        let cmd = "mkdir -p \"$HOME/.claude/cape\" && { cat; echo; } >> \"$HOME/.claude/cape/events.jsonl\""
         let group: [String: Any] = ["hooks": [["type": "command", "command": cmd]]]
 
         for event in ["UserPromptSubmit", "Stop", "Notification", "SessionStart", "SessionEnd", "SubagentStop"] {
@@ -175,7 +175,7 @@ final class ClaudeSessionsManager: ObservableObject {
 
         // statusLine: the only source of the usage-limit reset times. Point it at
         // our own executable's hidden `statusline` subcommand.
-        let exe = Bundle.main.executableURL?.path ?? CommandLine.arguments.first ?? "mac-notch"
+        let exe = Bundle.main.executableURL?.path ?? CommandLine.arguments.first ?? "cape"
         root["statusLine"] = ["type": "command", "command": "\"\(exe)\" statusline"]
 
         guard let out = try? JSONSerialization.data(withJSONObject: root,

@@ -20,12 +20,12 @@ jobs:
       - name: Build (release)
         run: swift build -c release
 
-      - name: Package mac-notch.app
+      - name: Package Cape.app
         run: ./build-app.sh
 
       - name: Upload app bundle
         uses: actions/upload-artifact@v5
         with:
-          name: mac-notch-app
-          path: mac-notch.app
+          name: cape-app
+          path: Cape.app
           if-no-files-found: error

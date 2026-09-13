@@ -1,20 +1,22 @@
 <p align="center">
-  <img src="Resources/AppIcon.png" width="150" alt="mac-notch logo" />
+  <img src="Resources/AppIcon.png" width="150" alt="Cape logo" />
 </p>
 
-<h1 align="center">mac-notch</h1>
+<h1 align="center">Cape</h1>
 
 <p align="center">
-  A lightweight, Dynamic-Island-style hub that lives right in your MacBook notch.<br/>
+  A lightweight hub that lives right in your MacBook notch. Where Apple's Dynamic
+  Island floats free, Cape is the <strong>peninsula</strong> — attached to the top
+  edge, always in reach.<br/>
   Hover the notch and it expands; move away and it collapses. No Dock icon, no menu-bar icon.
 </p>
 
 <p align="center">
-  <a href="https://github.com/timryadovouu/mac-notch/actions/workflows/build.yml">
-    <img src="https://github.com/timryadovouu/mac-notch/actions/workflows/build.yml/badge.svg" alt="Build" />
+  <a href="https://github.com/timryadovouu/cape/actions/workflows/build.yml">
+    <img src="https://github.com/timryadovouu/cape/actions/workflows/build.yml/badge.svg" alt="Build" />
   </a>
-  <a href="https://github.com/timryadovouu/mac-notch/releases">
-    <img src="https://img.shields.io/github/v/release/timryadovouu/mac-notch?include_prereleases&color=FA834D" alt="Latest release" />
+  <a href="https://github.com/timryadovouu/cape/releases">
+    <img src="https://img.shields.io/github/v/release/timryadovouu/cape?include_prereleases&color=FA834D" alt="Latest release" />
   </a>
   <img src="https://img.shields.io/badge/macOS-13%2B-000000?logo=apple&logoColor=white" alt="macOS 13+" />
   <img src="https://img.shields.io/badge/Swift-5.9-FA834D?logo=swift&logoColor=white" alt="Swift 5.9" />
@@ -27,7 +29,7 @@
 
 ## Overview
 
-**mac-notch** turns the empty space around the camera notch into a small control
+**Cape** turns the empty space around the camera notch into a small control
 center. Everything is a module you jump between from a horizontal icon rail; the
 coral gear opens a proper Settings window. It's a single Swift Package
 executable — SwiftUI + AppKit, with a single dependency
@@ -85,7 +87,7 @@ Even when closed, the brow stays useful:
 
 ## Claude Code integration
 
-Optional, off by default. Flip **Track Claude Code** in Settings and mac-notch
+Optional, off by default. Flip **Track Claude Code** in Settings and Cape
 gives you two things:
 
 - A pulsing **coral blob** on the right of the notch while any Claude Code
@@ -102,14 +104,14 @@ gives you two things:
 and a `statusLine` command into `~/.claude/settings.json` (backed up to
 `settings.json.bak` first; your other settings are preserved):
 
-- The **hooks** append session events to `~/.claude/mac-notch/events.jsonl`; that
+- The **hooks** append session events to `~/.claude/cape/events.jsonl`; that
   stream drives the blob.
 - The **reset time** comes from whichever Claude you use:
-  - **Terminal Claude Code** — mac-notch installs *itself* as your `statusLine`
-    (a hidden `mac-notch statusline` subcommand), the only place the CLI exposes
+  - **Terminal Claude Code** — Cape installs *itself* as your `statusLine`
+    (a hidden `statusline` subcommand), the only place the CLI exposes
     when a window resets. Your terminal footer becomes a compact
     `Opus 4.8 · project · main · ctx 42% · 5h 63% · wk 21%`.
-  - **Desktop app** — the chat never runs a statusLine, so mac-notch reads the
+  - **Desktop app** — the chat never runs a statusLine, so Cape reads the
     reset time straight from the desktop app's own local storage instead
     (best-effort: it's undocumented and may change between Claude versions).
 
@@ -157,9 +159,9 @@ Runs on macOS 13+. Two ways to get it:
 > The prebuilt release is **Apple Silicon only**. On an Intel Mac, use Option B —
 > building from source compiles it for your machine.
 
-1. Open the [latest release](https://github.com/timryadovouu/mac-notch/releases/latest)
-   and download **`mac-notch.zip`** under *Assets*.
-2. Double-click the zip to unpack **`mac-notch.app`**, then drag it to
+1. Open the [latest release](https://github.com/timryadovouu/cape/releases/latest)
+   and download **`Cape.zip`** under *Assets*.
+2. Double-click the zip to unpack **`Cape.app`**, then drag it to
    **Applications** (optional, but tidy).
 3. The build isn't signed/notarized, so the first launch is blocked by
    Gatekeeper. **Right-click the app → Open → Open** in the dialog (or, after a
@@ -172,19 +174,19 @@ Needs the **Xcode Command Line Tools** — install them once with
 `xcode-select --install` (a few hundred MB; the full Xcode is not required).
 
 ```bash
-git clone https://github.com/timryadovouu/mac-notch.git
-cd mac-notch
-./build-app.sh        # compiles, generates the icon, packages mac-notch.app
-open mac-notch.app
+git clone https://github.com/timryadovouu/cape.git
+cd cape
+./build-app.sh        # compiles, generates the icon, packages Cape.app
+open Cape.app
 ```
 
-`build-app.sh` drops **`mac-notch.app`** in the repo root. A build you compiled
+`build-app.sh` drops **`Cape.app`** in the repo root. A build you compiled
 yourself isn't quarantined, so there's no Gatekeeper prompt. For quick iteration
 without packaging, `swift run` launches it straight from source.
 
 ### After it's running
 
-There's **no Dock or menu-bar icon** — mac-notch lives over the notch. Hover the
+There's **no Dock or menu-bar icon** — Cape lives over the notch. Hover the
 notch to expand it. To start it automatically after a reboot, open Settings (the
 coral gear) and turn on **Launch at login**. Quit from the red **Quit** button in
 the expanded panel.
@@ -192,9 +194,9 @@ the expanded panel.
 ## Updating
 
 There's no auto-update yet — grab a new version the same way you first installed
-it: **quit** mac-notch (the red Quit button), download the latest
-**`mac-notch.zip`**, and replace the app. Your **settings and data are kept** —
-they live in `~/Library/Application Support/MacNotch/`, not inside the app, and a
+it: **quit** Cape (the red Quit button), download the latest
+**`Cape.zip`**, and replace the app. Your **settings and data are kept** —
+they live in `~/Library/Application Support/Cape/`, not inside the app, and a
 downloaded dictation model stays too. The fresh download needs the one-time
 Gatekeeper **right-click → Open** again.
 
@@ -202,12 +204,12 @@ Gatekeeper **right-click → Open** again.
 
 Everything stays on your Mac:
 
-- Clipboard buffer: `~/Library/Application Support/MacNotch/localBuffer/`
-- Tasks, Screen Time, settings: `~/Library/Application Support/MacNotch/`
+- Clipboard buffer: `~/Library/Application Support/Cape/localBuffer/`
+- Tasks, Screen Time, settings: `~/Library/Application Support/Cape/`
 - Dictation models (only if you use Voice): `~/Documents/huggingface/`
-- Claude Code tracking (only if enabled): `~/.claude/mac-notch/`
+- Claude Code tracking (only if enabled): `~/.claude/cape/`
 
-When Claude tracking is on, mac-notch also **reads** (never writes) the reset
+When Claude tracking is on, Cape also **reads** (never writes) the reset
 time from the desktop app's local storage; that data stays on your Mac too.
 
 ## Permissions
@@ -222,9 +224,9 @@ time from the desktop app's local storage; that data stays on your Mac too.
 ## Project structure
 
 ```
-Sources/MacNotch/
+Sources/Cape/
   main.swift / AppDelegate.swift      app entry (accessory policy, app icon, Edit menu)
-  StatusLine.swift                    `mac-notch statusline` subcommand for Claude Code
+  StatusLine.swift                    `statusline` subcommand for Claude Code
   DesktopLimitReader.swift            reads the limit reset time from the Claude desktop app
   ScreenNotch.swift                   notch geometry (+ non-notch fallback)
   NotchController.swift               the window over the notch + hover logic
@@ -240,7 +242,7 @@ Sources/MacNotch/
   DoubleOptionHotkey.swift            global double-⌥ dictation shortcut
   Settings.swift / SettingsPanel.swift  settings model + window
 Resources/AppIcon.png                 app icon source
-build-app.sh                          release build → mac-notch.app
+build-app.sh                          release build → Cape.app
 .github/workflows/                     CI: build on push, publish on version tags
 ```
 

@@ -22,7 +22,7 @@ jobs:
         run: ./build-app.sh
 
       - name: Zip the app
-        run: ditto -c -k --keepParent mac-notch.app mac-notch.zip
+        run: ditto -c -k --keepParent Cape.app Cape.zip
 
       - name: Create GitHub Release
         env:
@@ -40,7 +40,7 @@ jobs:
             found { print }
           ' CHANGELOG.md > notes.md
           if [ -s notes.md ]; then
-            gh release create "$TAG" mac-notch.zip --title "$TAG" --notes-file notes.md $PRERELEASE
+            gh release create "$TAG" Cape.zip --title "$TAG" --notes-file notes.md $PRERELEASE
           else
-            gh release create "$TAG" mac-notch.zip --title "$TAG" --generate-notes $PRERELEASE
+            gh release create "$TAG" Cape.zip --title "$TAG" --generate-notes $PRERELEASE
           fi

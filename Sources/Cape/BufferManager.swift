@@ -35,7 +35,7 @@ final class BufferManager: ObservableObject {
     private var lastDay: String = ""
     private var reloadTick = 0
     private var timer: Timer?
-    private let io = DispatchQueue(label: "io.macnotch.localBuffer")
+    private let io = DispatchQueue(label: "io.cape.localBuffer")
 
     private static let dayFormatter: DateFormatter = {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f

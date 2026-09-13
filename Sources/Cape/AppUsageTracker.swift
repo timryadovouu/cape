@@ -34,7 +34,7 @@ final class AppUsageTracker: ObservableObject {
     private var tick = 0
     private var timer: Timer?
 
-    private let selfName = NSRunningApplication.current.localizedName ?? "mac-notch"
+    private let selfName = NSRunningApplication.current.localizedName ?? "Cape"
 
     /// Don't credit time while the screen is locked / at the login window /
     /// running the screensaver — that isn't real usage.

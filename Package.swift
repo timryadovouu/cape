@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "MacNotch",
+    name: "Cape",
     platforms: [.macOS(.v13)],
     dependencies: [
         // On-device speech-to-text (Whisper via CoreML). Provides the `WhisperKit`
@@ -11,11 +11,11 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
-            name: "MacNotch",
+            name: "Cape",
             dependencies: [
                 .product(name: "WhisperKit", package: "argmax-oss-swift"),
             ],
-            path: "Sources/MacNotch"
+            path: "Sources/Cape"
         )
     ]
 )

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds MacNotch and packages it into mac-notch.app (accessory app).
+# Builds Cape and packages it into Cape.app (accessory app).
 set -e
 cd "$(dirname "$0")"
 
@@ -13,13 +13,13 @@ echo "==> Version $VERSION (build $BUILD)"
 echo "==> swift build -c release"
 swift build -c release
 
-APP="mac-notch.app"
-BIN="$(swift build -c release --show-bin-path)/MacNotch"
+APP="Cape.app"
+BIN="$(swift build -c release --show-bin-path)/Cape"
 
 echo "==> Packaging $APP"
-rm -rf "$APP" MacNotch.app
+rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp "$BIN" "$APP/Contents/MacOS/MacNotch"
+cp "$BIN" "$APP/Contents/MacOS/Cape"
 
 # App icon from Resources/AppIcon.png
 if [ -f "Resources/AppIcon.png" ]; then
@@ -41,20 +41,20 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleName</key>             <string>mac-notch</string>
-    <key>CFBundleDisplayName</key>      <string>mac-notch</string>
-    <key>CFBundleIdentifier</key>       <string>io.macnotch.app</string>
+    <key>CFBundleName</key>             <string>Cape</string>
+    <key>CFBundleDisplayName</key>      <string>Cape</string>
+    <key>CFBundleIdentifier</key>       <string>io.cape.app</string>
     <key>CFBundleVersion</key>          <string>${BUILD}</string>
     <key>CFBundleShortVersionString</key><string>${VERSION}</string>
-    <key>CFBundleExecutable</key>       <string>MacNotch</string>
+    <key>CFBundleExecutable</key>       <string>Cape</string>
     <key>CFBundleIconFile</key>         <string>AppIcon</string>
     <key>CFBundlePackageType</key>      <string>APPL</string>
     <key>LSMinimumSystemVersion</key>   <string>13.0</string>
     <key>LSUIElement</key>              <true/>
     <key>NSAppleEventsUsageDescription</key>
-    <string>mac-notch controls Spotify playback from the notch.</string>
+    <string>Cape controls Spotify playback from the notch.</string>
     <key>NSMicrophoneUsageDescription</key>
-    <string>mac-notch records your voice for on-device dictation into the buffer.</string>
+    <string>Cape records your voice for on-device dictation into the buffer.</string>
 </dict>
 </plist>
 PLIST

@@ -26,11 +26,11 @@ final class AppModules {
         voice = VoiceDictation(settings: settings, todo: todo)
     }
 
-    /// Shared support directory: ~/Library/Application Support/MacNotch
+    /// Shared support directory: ~/Library/Application Support/Cape
     static let supportDirectory: URL = {
         let base = FileManager.default.urls(for: .applicationSupportDirectory,
                                             in: .userDomainMask).first!
-        let dir = base.appendingPathComponent("MacNotch", isDirectory: true)
+        let dir = base.appendingPathComponent("Cape", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }()

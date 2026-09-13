@@ -1,6 +1,6 @@
 import Foundation
 
-/// Handles the hidden `mac-notch statusline` subcommand.
+/// Handles the hidden `cape statusline` subcommand.
 ///
 /// Claude Code invokes a configured `statusLine` command on every UI render and
 /// pipes a JSON blob to it on stdin. That blob is the *only* place Claude Code
@@ -20,7 +20,7 @@ enum StatusLine {
     }
 
     private static var dir: URL {
-        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/mac-notch")
+        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/cape")
     }
 
     // MARK: - Capture

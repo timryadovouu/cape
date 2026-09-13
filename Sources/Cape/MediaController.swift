@@ -15,7 +15,7 @@ final class MediaController: ObservableObject {
     @Published private(set) var isPlaying: Bool = false
 
     private var timer: Timer?
-    private let queue = DispatchQueue(label: "io.macnotch.media")
+    private let queue = DispatchQueue(label: "io.cape.media")
     private lazy var cmusRemote = Self.findCmusRemote()
 
     init() {
