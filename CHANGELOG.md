@@ -4,6 +4,16 @@ All notable changes to Cape are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.3.2] — 2026-09-24
+
+### Added
+- A short **Russian README** (`README.ru.md`) — the highlights, install, updates
+  and what the signing means — with an English · Русский switch on both READMEs.
+
+### Fixed
+- The updater now removes the downloaded archive before relaunching (it used to
+  leave a ~3 MB zip behind in the temporary folder).
+
 ## [0.3.1] — 2026-09-24
 
 The first update delivered through the in-app updater — install it from
@@ -195,6 +205,7 @@ Initial public beta.
 - A standalone **Settings** window, Launch at login, and GitHub Actions CI +
   releases.
 
+[0.3.2]: https://github.com/timryadovouu/cape/releases/tag/v0.3.2
 [0.3.1]: https://github.com/timryadovouu/cape/releases/tag/v0.3.1
 [0.3.0]: https://github.com/timryadovouu/cape/releases/tag/v0.3.0
 [0.2.0]: https://github.com/timryadovouu/cape/releases/tag/v0.2.0

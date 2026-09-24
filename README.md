@@ -12,6 +12,10 @@
 </p>
 
 <p align="center">
+  <strong>English</strong> · <a href="README.ru.md">Русский</a>
+</p>
+
+<p align="center">
   <a href="https://github.com/timryadovouu/cape/actions/workflows/build.yml">
     <img src="https://github.com/timryadovouu/cape/actions/workflows/build.yml/badge.svg" alt="Build" />
   </a>

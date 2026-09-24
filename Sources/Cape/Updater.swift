@@ -168,6 +168,10 @@ final class Updater: ObservableObject {
                 try? Self.run("/usr/bin/xattr", ["-dr", "com.apple.quarantine", newApp.path])
 
                 _ = try FileManager.default.replaceItemAt(appURL, withItemAt: newApp)
+                // Relaunching ends this process, so the `defer` above never runs on
+                // success — clean up the download and staging folder first.
+                try? FileManager.default.removeItem(at: staging)
+                try? FileManager.default.removeItem(at: zip)
                 await MainActor.run { Self.relaunch(appURL) }
             } catch {
                 await MainActor.run { self.state = .failed(Self.message(error)) }
