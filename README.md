@@ -18,11 +18,21 @@
   <a href="https://github.com/timryadovouu/cape/releases">
     <img src="https://img.shields.io/github/v/release/timryadovouu/cape?include_prereleases&color=FA834D" alt="Latest release" />
   </a>
-  <img src="https://img.shields.io/badge/macOS-13%2B-000000?logo=apple&logoColor=white" alt="macOS 13+" />
-  <img src="https://img.shields.io/badge/Swift-5.9-FA834D?logo=swift&logoColor=white" alt="Swift 5.9" />
-  <img src="https://img.shields.io/badge/UI-SwiftUI%20%2B%20AppKit-3178C6" alt="SwiftUI + AppKit" />
-  <img src="https://img.shields.io/badge/dependency-WhisperKit-FA834D" alt="1 dependency: WhisperKit" />
-  <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license" />
+  <a href="https://www.apple.com/macos/">
+    <img src="https://img.shields.io/badge/macOS-13%2B-000000?logo=apple&logoColor=white" alt="macOS 13+" />
+  </a>
+  <a href="https://www.swift.org">
+    <img src="https://img.shields.io/badge/Swift-5.9-FA834D?logo=swift&logoColor=white" alt="Swift 5.9" />
+  </a>
+  <a href="https://developer.apple.com/xcode/swiftui/">
+    <img src="https://img.shields.io/badge/UI-SwiftUI%20%2B%20AppKit-3178C6" alt="SwiftUI + AppKit" />
+  </a>
+  <a href="https://github.com/argmaxinc/WhisperKit">
+    <img src="https://img.shields.io/badge/dependency-WhisperKit-FA834D" alt="1 dependency: WhisperKit" />
+  </a>
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license" />
+  </a>
 </p>
 
 ---
