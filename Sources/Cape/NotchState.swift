@@ -5,6 +5,8 @@ struct NotchAlert: Equatable {
     var icon: String
     var text: String?
     var color: Color
+    /// Set for the charging flash: battery level 0…1 (drawn as `ChargingBadge`).
+    var battery: Double? = nil
 }
 
 /// UI state of the notch: expansion, the current module (remembered across
@@ -18,6 +20,8 @@ final class NotchState: ObservableObject {
     /// While the cursor hovers the collapsed timer pill: reveal the inline
     /// pomodoro controls (pause / next / cancel) without expanding the notch.
     @Published var pomodoroControls = false
+    /// The Tools page is showing instead of a module (the grid button in the rail).
+    @Published var showingTools = false
 
     /// Keep the notch open (ignoring the cursor) until this moment — used after
     /// a grabber tap so shrinking doesn't instantly collapse the panel.
@@ -58,11 +62,13 @@ final class NotchState: ObservableObject {
         if !settings.isEnabled(currentModule) {
             currentModule = settings.enabledModules.first ?? .tasks
         }
+        showingTools = false
         touch()
     }
 
     func selectModule(_ module: Module) {
         currentModule = module
+        showingTools = false
         touch()
     }
 
@@ -75,9 +81,27 @@ final class NotchState: ObservableObject {
 
     // MARK: - Left alerts
 
-    /// Icon-only effect shown on a new copy.
+    /// Icon-only effect shown on a new copy. Lowest priority: it never replaces a
+    /// richer alert on screen (e.g. the picked color, whose hex the buffer then
+    /// captures as a copy a moment later).
     func flashCopy() {
+        if let a = alert, a.text != nil || a.battery != nil { return }
         show(NotchAlert(icon: "doc.on.clipboard.fill", text: nil, color: .coral), duration: 1.4)
+    }
+
+    /// Charger connected: bolt + filling battery + percent.
+    func flashCharging(_ level: Double) {
+        show(NotchAlert(icon: "bolt.fill", text: nil, color: .coral, battery: level), duration: 3.2)
+    }
+
+    /// A background check found a newer release.
+    func flashUpdate(_ version: String) {
+        show(NotchAlert(icon: "arrow.down.circle.fill", text: "Cape \(version)", color: .coral), duration: 4)
+    }
+
+    /// Eyedropper result: a swatch of the color and its hex (already copied).
+    func flashColor(_ hex: String, _ color: Color) {
+        show(NotchAlert(icon: "circle.fill", text: hex, color: color), duration: 2.6)
     }
 
     /// Shown when a Pomodoro phase changes (rest starts / next focus starts).

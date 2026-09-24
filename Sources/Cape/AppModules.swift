@@ -11,7 +11,11 @@ final class AppModules {
     let media: MediaController
     let claude: ClaudeSessionsManager
     let voice: VoiceDictation
-    lazy var settingsWindow = SettingsWindowController(settings: settings, buffer: buffer, claude: claude, voice: voice)
+    let keyboardCleaner = KeyboardCleaner()
+    let power = PowerMonitor()
+    let updater: Updater
+    lazy var settingsWindow = SettingsWindowController(settings: settings, buffer: buffer, claude: claude,
+                                                       voice: voice, updater: updater)
 
     init() {
         let settings = Settings()
@@ -21,16 +25,20 @@ final class AppModules {
         system = SystemStats()
         usage = AppUsageTracker(settings: settings)
         todo = TodoStore()
-        media = MediaController()
+        media = MediaController(mediaKeys: Screenshots.outputDir == nil)
         claude = ClaudeSessionsManager(settings: settings)
         voice = VoiceDictation(settings: settings, todo: todo)
+        updater = Updater(settings: settings)
     }
 
     /// Shared support directory: ~/Library/Application Support/Cape
+    /// (`CAPE_SUPPORT_DIR` overrides it — used by the screenshot tool's demo data).
     static let supportDirectory: URL = {
         let base = FileManager.default.urls(for: .applicationSupportDirectory,
                                             in: .userDomainMask).first!
-        let dir = base.appendingPathComponent("Cape", isDirectory: true)
+        let dir = ProcessInfo.processInfo.environment["CAPE_SUPPORT_DIR"]
+            .map { URL(fileURLWithPath: $0, isDirectory: true) }
+            ?? base.appendingPathComponent("Cape", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }()

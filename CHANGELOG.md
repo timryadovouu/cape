@@ -4,6 +4,62 @@ All notable changes to Cape are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] — 2026-09-24
+
+The first release under the **Cape** name, and the first that updates itself.
+
+### Added
+- **In-app updates** — *Settings › Updates* checks GitHub Releases (at launch,
+  every few hours, or on demand), and *Install & Relaunch* downloads the new
+  version, verifies its signature, swaps it in and restarts. A coral dot on the
+  gear and a brief flash in the notch announce a new version.
+- **Task reminders** — put a time in the task (*"в 15:00"*, *"через 20 минут"*,
+  *"завтра в 9"*, *"at 3pm"*; 24-hour clock) or set a date & time with the 🔔
+  button (quick picks: +1 h, 18:00, tomorrow 9:00). When due, a ringing bell
+  slides out to the right of the notch with a sound; hover it to open Tasks.
+  Tasks are grouped into Overdue / Today / Upcoming / No date / Done.
+- **Tools** — a new ▦ page on the right of the rail, with a global shortcut for
+  each tool (*Settings › Tools*, no extra permission):
+  - **Pick color** — the system loupe; the hex goes to the clipboard and buffer.
+  - **Clean keyboard** — locks all keys behind an overlay while you wipe it
+    (Done button, auto-unlocks after 2 min, on sleep or screen lock).
+- **Media** — cover art (Spotify; for cmus a `cover`/`folder` image in the album
+  folder or art embedded in MP3/M4A), a coral progress bar with click/drag to
+  seek, and a click on the right-hand time toggles *time left* ↔ *track length*.
+- **Media keys for cmus** — F7 / F8 / F9 now control cmus, and its track appears
+  in Control Center.
+- **Hover the music island** (left of the notch) to open straight to Media —
+  can be turned off in *Settings › Notch*.
+- **Charging flash** — plug in the charger and a springing ⚡ fills a coral
+  battery up to the current percent.
+- **Dictation keys** — hold **🌐 Fn** or **right ⌥** to talk (walkie-talkie
+  style), and choose the double-tap key: ⌥ (either side), right ⌥ or ⌃.
+- **Buffer day headers** — Pinned / Today / Yesterday / date, and the copy time
+  on every entry.
+
+### Changed
+- **Renamed to Cape** — app, bundle id (`io.cape.app`), data folder
+  (`~/Library/Application Support/Cape`), Claude folder (`~/.claude/cape`) and the
+  release asset (`Cape.zip`). Nothing is imported from mac-notch.
+- **Signed with the project's own certificate** ("Cape Signing") instead of
+  ad-hoc, so macOS permissions survive updates. Grant them once more after
+  installing 0.3.0.
+- The rail keeps tabs on the left and puts Tools, Settings and Quit on the right.
+
+### Fixed
+- Copied **files** now appear at the top of the buffer (ordered by copy time, not
+  by the file's own modification date).
+- Dictation no longer **crashes** when the audio device changes (HDMI/TV,
+  headphones, Bluetooth) — or when there's no input device.
+- Quitting **Spotify** (⌘Q) no longer relaunches it.
+- The dictation keys kept working only until you clicked into the notch — they now
+  work whichever app is focused.
+- The media progress bar moves smoothly (no more small jumps back).
+
+### Upgrading
+From 0.2.0 or earlier (*mac-notch*), download `Cape.zip` once by hand. Every
+update after this one is a click in Settings.
+
 ## [0.2.0] — 2026-09-13
 
 ### Added
@@ -130,6 +186,7 @@ Initial public beta.
 - A standalone **Settings** window, Launch at login, and GitHub Actions CI +
   releases.
 
+[0.3.0]: https://github.com/timryadovouu/cape/releases/tag/v0.3.0
 [0.2.0]: https://github.com/timryadovouu/cape/releases/tag/v0.2.0
 [0.1.3]: https://github.com/timryadovouu/cape/releases/tag/v0.1.3
 [0.1.2]: https://github.com/timryadovouu/cape/releases/tag/v0.1.2

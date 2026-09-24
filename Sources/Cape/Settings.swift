@@ -12,6 +12,20 @@ final class Settings: ObservableObject {
     // MARK: Notch
     @Published var recallMinutes: Int { didSet { d.set(recallMinutes, forKey: "recallMinutes") } }
     @Published var defaultModuleRaw: String { didSet { d.set(defaultModuleRaw, forKey: "defaultModuleRaw") } }
+    @Published var openMediaOnHover: Bool { didSet { d.set(openMediaOnHover, forKey: "openMediaOnHover") } }
+    @Published var showCharging: Bool { didSet { d.set(showCharging, forKey: "showCharging") } }
+
+    // MARK: Tools — global shortcut per tool (Tool.rawValue → combo)
+    @Published var toolShortcuts: [String: Shortcut] {
+        didSet { d.set(try? JSONEncoder().encode(toolShortcuts), forKey: "toolShortcuts") }
+    }
+
+    // MARK: Updates
+    @Published var autoCheckUpdates: Bool { didSet { d.set(autoCheckUpdates, forKey: "autoCheckUpdates") } }
+
+    // MARK: Tasks
+    @Published var reminderSound: Bool { didSet { d.set(reminderSound, forKey: "reminderSound") } }
+    @Published var reminderSoundName: String { didSet { d.set(reminderSoundName, forKey: "reminderSoundName") } }
 
     // MARK: Modules (order + which are enabled)
     @Published var moduleOrder: [String] { didSet { d.set(moduleOrder, forKey: "moduleOrder") } }
@@ -27,6 +41,9 @@ final class Settings: ObservableObject {
     @Published var voiceLanguage: String { didSet { d.set(voiceLanguage, forKey: "voiceLanguage") } }
     @Published var voiceTranslate: Bool { didSet { d.set(voiceTranslate, forKey: "voiceTranslate") } }
     @Published var voiceHotkey: Bool { didSet { d.set(voiceHotkey, forKey: "voiceHotkey") } }
+    @Published var voiceHotkeyTrigger: String { didSet { d.set(voiceHotkeyTrigger, forKey: "voiceHotkeyTrigger") } }
+    @Published var voiceHoldFn: Bool { didSet { d.set(voiceHoldFn, forKey: "voiceHoldFn") } }
+    @Published var voiceHoldRightOption: Bool { didSet { d.set(voiceHoldRightOption, forKey: "voiceHoldRightOption") } }
     @Published var voicePreload: Bool { didSet { d.set(voicePreload, forKey: "voicePreload") } }
     @Published var pomodoroSoundName: String { didSet { d.set(pomodoroSoundName, forKey: "pomodoroSoundName") } }
     @Published var soundDuringDND: Bool { didSet { d.set(soundDuringDND, forKey: "soundDuringDND") } }
@@ -54,6 +71,13 @@ final class Settings: ObservableObject {
         clearBufferAtEndOfDay = d.object(forKey: "clearBufferAtEndOfDay") as? Bool ?? false
         recallMinutes = d.object(forKey: "recallMinutes") as? Int ?? 30
         defaultModuleRaw = d.string(forKey: "defaultModuleRaw") ?? Module.tasks.rawValue
+        openMediaOnHover = d.object(forKey: "openMediaOnHover") as? Bool ?? true
+        showCharging = d.object(forKey: "showCharging") as? Bool ?? true
+        toolShortcuts = d.data(forKey: "toolShortcuts")
+            .flatMap { try? JSONDecoder().decode([String: Shortcut].self, from: $0) } ?? [:]
+        autoCheckUpdates = d.object(forKey: "autoCheckUpdates") as? Bool ?? true
+        reminderSound = d.object(forKey: "reminderSound") as? Bool ?? true
+        reminderSoundName = d.string(forKey: "reminderSoundName") ?? "Ping"
 
         // Normalize module order: keep known modules, append any new ones.
         var order = d.stringArray(forKey: "moduleOrder") ?? Module.allCases.map(\.rawValue)
@@ -69,6 +93,9 @@ final class Settings: ObservableObject {
         voiceLanguage = d.string(forKey: "voiceLanguage") ?? VoiceModels.defaultLanguage
         voiceTranslate = d.object(forKey: "voiceTranslate") as? Bool ?? false
         voiceHotkey = d.object(forKey: "voiceHotkey") as? Bool ?? false
+        voiceHotkeyTrigger = d.string(forKey: "voiceHotkeyTrigger") ?? VoiceHotkeyTrigger.option.rawValue
+        voiceHoldFn = d.object(forKey: "voiceHoldFn") as? Bool ?? false
+        voiceHoldRightOption = d.object(forKey: "voiceHoldRightOption") as? Bool ?? false
         voicePreload = d.object(forKey: "voicePreload") as? Bool ?? true
         pomodoroSoundName = d.string(forKey: "pomodoroSoundName") ?? "Funk"
         soundDuringDND = d.object(forKey: "soundDuringDND") as? Bool ?? true

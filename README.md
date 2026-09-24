@@ -30,15 +30,16 @@
 ## Overview
 
 **Cape** turns the empty space around the camera notch into a small control
-center. Everything is a module you jump between from a horizontal icon rail; the
-coral gear opens a proper Settings window. It's a single Swift Package
+center. Modules sit on the left of a horizontal icon rail; on the right are
+**Tools**, the coral **Settings** gear and **Quit**. It's a single Swift Package
 executable — SwiftUI + AppKit, with a single dependency
 ([WhisperKit](https://github.com/argmaxinc/WhisperKit)) powering on-device voice
-dictation.
+dictation — and it **updates itself** from GitHub Releases.
 
 - Runs as an **accessory app** (`LSUIElement`) — invisible in the Dock and menu bar.
 - Sits over the physical notch and morphs like the iPhone Dynamic Island.
-- Works on notchless Macs and external displays too (a synthetic top-center notch).
+- Pinned to the built-in (notch) screen, so plugging in a TV or an extended
+  display doesn't move it; works on notchless Macs too (a synthetic top-center notch).
 
 ## Screenshots
 
@@ -52,20 +53,35 @@ dictation.
 </p>
 <p align="center">
   <img src="docs/screenshots/screenTime.png" width="49%" alt="Screen Time" />
+  <img src="docs/screenshots/tools.png" width="49%" alt="Tools" />
 </p>
 
 ## Modules
 
 | Module | What it does |
 | --- | --- |
-| ⏱ **Timer** | Pomodoro with focus presets (5 / 10 / 15 / 25 / 30 / 60 min), a long break every 4 sessions. Configurable break lengths and a completion sound — pick any system sound (hover to preview) and choose whether it still plays during a Focus. A live countdown shows to the right of the notch; each phase change slides a **Focus / Break** alert in from the left. **Hover the collapsed countdown for inline pause / next / cancel** (or click the time to pause) — no need to open the panel. |
-| 📋 **Buffer** | A persistent clipboard. Everything you copy is saved as a **real file** under the buffer folder, in a per-day `YYYY-MM-DD` subfolder — text, images, and any copied files. Click an entry to copy it back, or **drag it straight out** to Finder / any app. Per-row **star / copy / delete** on hover — **starred items pin to the top and survive** retention, "Clear day", and end-of-day wipes. "Finder" opens the folder, "Clear day" wipes today. Deletions made directly in the folder show up automatically. A **mic** button dictates speech straight into the buffer (see *Voice dictation*). |
-| 🎵 **Media** | Now-playing + transport for **Spotify** (AppleScript) and **cmus** (`cmus-remote`). Play/pause reacts instantly. While something plays, a little **equalizer** pulses to the left of the notch; pause it and a coral ⏸ takes its place. |
-| ✅ **Tasks** | A local to-do list: add, complete, delete, restore. **Undone tasks stay on top, completed ones sink to the bottom.** Copy a task's text, or move it to a trash that keeps deleted items for a while. |
+| ⏱ **Timer** | Pomodoro with focus presets (5 / 10 / 15 / 25 / 30 / 60 min), a long break every 4 sessions. Configurable break lengths and a completion sound — pick any system sound (▶ to preview) and choose whether it still plays during a Focus. A live countdown shows to the right of the notch; each phase change slides a **Focus / Break** alert in from the left. **Hover the collapsed countdown for inline pause / next / cancel** (or click the time to pause) — no need to open the panel. |
+| 📋 **Buffer** | A persistent clipboard. Everything you copy is saved as a **real file** under the buffer folder, in a per-day `YYYY-MM-DD` subfolder — text, images, and any copied files. The list is grouped under **Pinned / Today / Yesterday / date** headers, with the copy time on every entry. Click an entry to copy it back, or **drag it straight out** to Finder / any app. Per-row **star / copy / delete** on hover — **starred items pin to the top and survive** retention, "Clear day", and end-of-day wipes. "Finder" opens the folder, "Clear day" wipes today. A **mic** button dictates speech straight into the buffer (see *Voice dictation*). |
+| 🎵 **Media** | Now playing for **Spotify** (AppleScript) and **cmus** (`cmus-remote`): **cover art**, title and artist, and a coral **progress bar** — click or drag to seek; click the right-hand time to switch between *time left* and *track length*. Covers come from Spotify, or for cmus from a `cover` / `folder` / `front` / `album` `.jpg`/`.png` in the album folder (or art embedded in MP3/M4A files). **Media keys (F7 / F8 / F9) work for cmus too** — Cape forwards them, and the track shows up in Control Center. |
+| ✅ **Tasks** | A local to-do list with **reminders**. Write the time right into the task — *"позвонить маме в 15:00"*, *"через 20 минут"*, *"завтра в 9"*, *"call mom at 3pm"* (24-hour clock) — or use the 🔔 button on any task to pick a **date & time** (quick picks: +1 h, 18:00, tomorrow 9:00). When it's due, a **ringing bell** slides out to the right of the notch with a sound; hover it to jump to Tasks. With reminders around, tasks are grouped into **Overdue / Today / Upcoming / No date / Done**. Copy, delete, and a trash that keeps deleted tasks for a while. |
 | ⏳ **Screen Time** | Local, on-device usage tracking: it credits the frontmost app every second and shows ranked apps (with icons), total time and switch count — **how many apps to list is up to you** (top 5–20 or all). **Each day is kept as its own snapshot — browse past days with ◀ / ▶**, and toggle a bar chart of the current week (Mon–Sun). Resets at midnight; history retention is configurable. |
 
 The **Tasks, Buffer and Screen Time** panels have a little home-indicator grabber
 at the bottom — tap it to grow the panel vertically (and again to shrink).
+
+## Tools
+
+One-shot utilities that aren't tabs. Open them from the **▦ Tools** button on the
+right of the rail, or give each one a **global shortcut** in Settings › Tools
+(any combination with ⌘, ⌥ or ⌃ — no extra permission needed).
+
+- **Pick color** — the system magnifier loupe; click any pixel and its hex
+  (`#FA834D`) is copied to the clipboard and the buffer, with a swatch flashing in
+  the notch. Esc cancels.
+- **Clean keyboard** — locks every key (media, volume and brightness keys
+  included) behind a full-screen overlay so you can wipe the keyboard. The
+  trackpad stays live for the **Done** button; it also unlocks by itself after
+  2 minutes, on sleep, or when the screen locks.
 
 ## Beside the camera
 
@@ -79,16 +95,20 @@ figure. No tab, no clutter — just there while you're already looking.
 
 Even when closed, the brow stays useful:
 
-- **Left** — a pulsing **equalizer** while music plays (a coral ⏸ when paused), or a
-  brief coral flash on copy and a **Focus / Break** alert on a timer phase change.
-- **Right** — the Pomodoro **countdown** while a timer runs (hover it for inline
-  **pause / next / cancel**, or click the time to pause), and a small pulsing
-  **coral blob** whenever a Claude Code session is thinking (see below).
+- **Left** — a pulsing **equalizer** while music plays (a coral ⏸ when paused);
+  **hover it to open straight to Media** (can be turned off). Brief flashes also
+  appear here: a coral clip on copy, **Focus / Break** on a timer phase change, the
+  picked color, a new Cape version, and — when you **plug in the charger** — a
+  springing ⚡ with a battery filling up to the current percent.
+- **Right** — a small pulsing **coral blob** while a Claude Code session is
+  thinking (see below), the Pomodoro **countdown** while a timer runs (hover it
+  for inline **pause / next / cancel**), and a **ringing bell** when a task
+  reminder is due.
 
 ## Claude Code integration
 
 Optional, off by default. Flip **Track Claude Code** in Settings and Cape
-gives you two things:
+gives you:
 
 - A pulsing **coral blob** on the right of the notch while any Claude Code
   session is actively working — it lights only between your prompt and Claude's
@@ -120,8 +140,8 @@ Everything stays local — nothing is sent anywhere.
 ## Voice dictation
 
 A **mic** button in the Buffer tab turns speech into text, fully **on-device** —
-nothing leaves your Mac. Tap it (or use the global shortcut), speak, and the
-transcript lands on the clipboard, ready in the buffer.
+no audio leaves your Mac. Speak, and the transcript lands on the clipboard, ready
+in the buffer.
 
 - **Local Whisper** via [WhisperKit](https://github.com/argmaxinc/WhisperKit),
   running on the Neural Engine. Pick the model in Settings (Tiny → Large v3 Turbo
@@ -131,9 +151,13 @@ transcript lands on the clipboard, ready in the buffer.
   misread some, e.g. Russian, so pick it explicitly) and optionally translate to
   English.
 - **"note …" → Tasks** — a transcript starting with *note* / *заметка* is filed
-  as a task instead of going to the clipboard.
-- **Global shortcut** — double-tap **⌥ Option** to start/stop dictation from
-  anywhere (needs Accessibility permission).
+  as a task instead of going to the clipboard (and a time in it becomes a reminder).
+- **Global keys** (need Accessibility permission), use any combination:
+  - **Double-tap** to start / stop — **⌥ Option** (either side), **right ⌥** only,
+    or **⌃ Control**.
+  - **Hold to talk** like a walkie-talkie — hold **🌐 Fn** and/or **right ⌥**,
+    release to transcribe. A quick press keeps its usual job (e.g. the emoji
+    picker), and using the key in a chord (⌥+letter, Fn+⌫) cancels the recording.
 - The mic button reflects its state — recording (pulsing), loading the model,
   transcribing — and stays disabled until a model is downloaded.
 
@@ -142,13 +166,16 @@ transcript lands on the clipboard, ready in the buffer.
 The coral **gear** toggles a standalone window:
 
 - **General** — Launch at login and Track Claude Code.
+- **Updates** — current version, *Check for Updates*, *Install & Relaunch*, and automatic checks.
 - **Claude** — an optional sound when Claude finishes (its own system sound, plus Focus/DND and *mute while the Claude app is in front* toggles).
 - **Modules** — enable/disable and reorder the tabs in the rail.
-- **Timer** — short/long break lengths, the end-of-session sound (any system sound, hover to preview), and whether it plays during a Focus.
-- **Voice** — dictation model (downloaded once, with a delete button and a ✓ on the ones you have), spoken language, translate-to-English, the double-⌥ shortcut, and preloading the model at launch.
+- **Timer** — short/long break lengths, the end-of-session sound, and whether it plays during a Focus.
+- **Tools** — a global shortcut for each tool.
+- **Tasks** — the reminder sound.
+- **Voice** — dictation model (downloaded once, with a delete button and a ✓ on the ones you have), spoken language, translate-to-English, the double-tap key, hold-to-talk keys, and preloading the model at launch.
 - **Screen Time** — how long to keep daily history (default 1 year), and how many apps the list shows.
 - **Buffer** — folder location, auto-clear age, or clear-at-end-of-day.
-- **Notch** — reset-to-default-tab delay and which tab is the default.
+- **Notch** — reset-to-default-tab delay, the default tab, *open Media when hovering the music island*, and the charging flash.
 
 ## Install & run
 
@@ -162,11 +189,11 @@ Runs on macOS 13+. Two ways to get it:
 1. Open the [latest release](https://github.com/timryadovouu/cape/releases/latest)
    and download **`Cape.zip`** under *Assets*.
 2. Double-click the zip to unpack **`Cape.app`**, then drag it to
-   **Applications** (optional, but tidy).
-3. The build isn't signed/notarized, so the first launch is blocked by
-   Gatekeeper. **Right-click the app → Open → Open** in the dialog (or, after a
-   blocked double-click, go to **System Settings → Privacy & Security → Open
-   Anyway**). You only do this once.
+   **Applications** — the in-app updater needs it there.
+3. Cape isn't notarized by Apple (see *Signing & security*), so the first launch
+   is blocked by Gatekeeper. **Right-click the app → Open → Open** in the dialog
+   (or, after a blocked double-click, go to **System Settings → Privacy &
+   Security → Open Anyway**). You only do this once.
 
 ### Option B — build from source
 
@@ -181,8 +208,10 @@ open Cape.app
 ```
 
 `build-app.sh` drops **`Cape.app`** in the repo root. A build you compiled
-yourself isn't quarantined, so there's no Gatekeeper prompt. For quick iteration
-without packaging, `swift run` launches it straight from source.
+yourself isn't quarantined, so there's no Gatekeeper prompt. Without the project's
+signing certificate it's signed ad-hoc, which means macOS asks for permissions
+again after each rebuild. For quick iteration without packaging, `swift run`
+launches it straight from source.
 
 ### After it's running
 
@@ -193,12 +222,38 @@ the expanded panel.
 
 ## Updating
 
-There's no auto-update yet — grab a new version the same way you first installed
-it: **quit** Cape (the red Quit button), download the latest
-**`Cape.zip`**, and replace the app. Your **settings and data are kept** —
-they live in `~/Library/Application Support/Cape/`, not inside the app, and a
-downloaded dictation model stays too. The fresh download needs the one-time
-Gatekeeper **right-click → Open** again.
+**From 0.3.0 on, Cape updates itself.** It checks GitHub Releases at launch and
+every few hours (or on demand in **Settings › Updates**); when there's a new
+version, a coral dot appears on the gear and **Install & Relaunch** downloads it,
+verifies it, swaps it in and restarts. Your permissions stay granted and there's
+no Gatekeeper prompt for an update.
+
+Coming from an older build (0.2.0 or earlier, still called *mac-notch*)?
+Download **`Cape.zip`** once by hand as in *Install*. Cape starts fresh: it
+doesn't import data or settings from mac-notch.
+
+Your **settings and data are kept** across updates — they live in
+`~/Library/Application Support/Cape/`, not inside the app, and a downloaded
+dictation model stays too.
+
+## Signing & security
+
+Releases are signed with the project's own code-signing certificate
+(**"Cape Signing"**), not Apple's paid Developer ID. What that means:
+
+- **Apple doesn't vouch for the author** — hence the one-time right-click → Open.
+- **The signature seals the app**: every file is hashed and sealed with the
+  project's private key, so any modification after signing breaks it. The
+  certificate adds no code and grants no permissions; it only identifies who
+  sealed the app.
+- **Updates must carry the same signature.** The updater installs a download
+  only if it's sealed by the same certificate as the running app; anything else
+  is rejected.
+- **Permissions survive updates.** macOS ties them to the certificate rather
+  than to one particular build.
+- **Releases are built in the open.** GitHub Actions builds each release from the
+  tagged source, and the logs are public. The private key lives only in the
+  author's keychain and the repository's encrypted secrets.
 
 ## Where data lives
 
@@ -212,14 +267,18 @@ Everything stays on your Mac:
 When Claude tracking is on, Cape also **reads** (never writes) the reset
 time from the desktop app's local storage; that data stays on your Mac too.
 
+**Network use** is limited to: the update check (GitHub's public API) and the
+update download, Spotify cover images, and the one-time dictation model download.
+
 ## Permissions
 
 - **Media → Spotify** uses AppleScript, so macOS will ask for **Automation**
   access the first time — approve it or the track/controls won't work. **cmus**
   needs `cmus-remote` on your `PATH`.
-- **Voice dictation** asks for **Microphone** access on first use; the optional
-  double-⌥ shortcut also needs **Accessibility** (System Settings → Privacy &
-  Security). Downloading a dictation model uses the network once.
+- **Voice dictation** asks for **Microphone** access on first use.
+- **Accessibility** (System Settings → Privacy & Security) is needed for the
+  dictation keys (double-tap and hold-to-talk) and for **Clean keyboard**.
+- **Pick color** and the **tool shortcuts** need no permission.
 
 ## Project structure
 
@@ -230,7 +289,7 @@ Sources/Cape/
   DesktopLimitReader.swift            reads the limit reset time from the Claude desktop app
   ScreenNotch.swift                   notch geometry (+ non-notch fallback)
   NotchController.swift               the window over the notch + hover logic
-  NotchRootView.swift                 the brow, its morphing, equalizer & Claude blob
+  NotchRootView.swift                 the brow, its morphing, islands, charging & reminder badges
   ExpandedPanel.swift                 CPU/RAM header, icon rail + module hosting
   GrabberBar.swift                    shared grow/shrink pill
   *Panel.swift                        per-module UI
@@ -238,12 +297,18 @@ Sources/Cape/
   MediaController / AppUsageTracker /
   TodoStore / SystemStats /
   ClaudeSessionsManager               module & integration logic
+  DueParser.swift                     reminder times from task text (RU / EN)
   VoiceDictation.swift                on-device dictation (WhisperKit) + mic capture
-  DoubleOptionHotkey.swift            global double-⌥ dictation shortcut
+  DictationHotkey.swift               double-tap & hold-to-talk dictation keys
+  Tools.swift                         Tools page, global shortcuts, shortcut recorder
+  EyeDropper.swift / KeyboardCleaner.swift   the tools
+  PowerMonitor.swift                  charger-connected detection
+  Updater.swift                       in-app updates from GitHub Releases
+  Screenshots.swift                   dev tool: renders docs/screenshots from demo data
   Settings.swift / SettingsPanel.swift  settings model + window
 Resources/AppIcon.png                 app icon source
-build-app.sh                          release build → Cape.app
-.github/workflows/                     CI: build on push, publish on version tags
+build-app.sh                          release build → signed Cape.app
+.github/workflows/                    CI: build on push, publish signed releases on version tags
 ```
 
 ## License

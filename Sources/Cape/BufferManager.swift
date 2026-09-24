@@ -208,6 +208,12 @@ final class BufferManager: ObservableObject {
         let dest = uniqueURL(in: todayURL(), name: src.lastPathComponent)
         do {
             try FileManager.default.copyItem(at: src, to: dest)
+            // Order the buffer by copy time, not the source file's own mtime.
+            // copyItem preserves the original modification date, which would
+            // otherwise sort a just-copied file by when it was last edited
+            // (e.g. below text copied moments ago) instead of on top.
+            try? FileManager.default.setAttributes([.modificationDate: Date()],
+                                                   ofItemAtPath: dest.path)
             return item(for: dest)
         } catch {
             return nil

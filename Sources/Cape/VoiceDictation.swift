@@ -39,9 +39,9 @@ final class VoiceDictation: ObservableObject, @unchecked Sendable {
 
     private let settings: Settings
     private let todo: TodoStore
-    private let engine = AVAudioEngine()
+    private var engine = AVAudioEngine()
     private let audio = AudioBuffer()
-    private let hotkey = DoubleOptionHotkey()
+    private let hotkey = DictationHotkey()
     private var recordRate: Double = 16_000
     private static let targetRate: Double = 16_000   // Whisper wants 16 kHz mono
 
@@ -49,15 +49,66 @@ final class VoiceDictation: ObservableObject, @unchecked Sendable {
         self.settings = settings
         self.todo = todo
         hotkey.onTrigger = { [weak self] in self?.toggle() }
-        applyHotkey(enabled: settings.voiceHotkey, prompt: false)   // restore, no prompt on launch
+        hotkey.onHoldStart = { [weak self] in self?.holdStart() }
+        hotkey.onHoldEnd = { [weak self] in self?.holdEnd() }
+        hotkey.onHoldCancel = { [weak self] in self?.holdCancel() }
+        applyHotkey(prompt: false)   // restore, no prompt on launch
     }
 
-    /// Turn the global double-⌥ shortcut on/off. Prompts for Accessibility access
-    /// the first time the user enables it.
-    func applyHotkey(enabled: Bool, prompt: Bool = true) {
-        guard enabled else { hotkey.stop(); return }
-        if prompt { DoubleOptionHotkey.requestAccessibilityPrompt() }
+    /// Apply the global dictation keys from Settings (double-tap and/or hold-to-
+    /// talk). Prompts for Accessibility access when one is being switched on.
+    func applyHotkey(prompt: Bool = true) {
+        hotkey.trigger = VoiceHotkeyTrigger(rawValue: settings.voiceHotkeyTrigger) ?? .option
+        hotkey.doubleTapEnabled = settings.voiceHotkey
+        hotkey.holdFn = settings.voiceHoldFn
+        hotkey.holdRightOption = settings.voiceHoldRightOption
+        guard settings.voiceHotkey || settings.voiceHoldFn || settings.voiceHoldRightOption else {
+            hotkey.stop(); return
+        }
+        if prompt { DictationHotkey.requestAccessibilityPrompt() }
         hotkey.start()
+    }
+
+    // MARK: - Push-to-talk
+
+    /// True while the current recording was started by holding a key — only then
+    /// does releasing that key stop it (a double-tap recording is left alone).
+    private var startedByHold = false
+    private var holdActive = false
+
+    private func holdStart() {
+        holdActive = true
+        guard status == .idle else { return }
+        startedByHold = true
+        requestAndStart(fromHold: true)
+    }
+
+    private func holdEnd() {
+        holdActive = false
+        guard startedByHold else { return }
+        startedByHold = false
+        if status == .recording { stop() }
+    }
+
+    /// The held key turned out to be part of a chord (⌥+letter, Fn+⌫…) — drop
+    /// the recording without transcribing it.
+    private func holdCancel() {
+        holdActive = false
+        guard startedByHold else { return }
+        startedByHold = false
+        if status == .recording { discardRecording() }
+    }
+
+    private func discardRecording() {
+        engine.inputNode.removeTap(onBus: 0)
+        engine.stop()
+        _ = audio.take()
+        status = .idle
+    }
+
+    /// Apply a changed shortcut modifier live (the monitors read `trigger` per event).
+    func updateHotkeyTrigger() {
+        hotkey.trigger = VoiceHotkeyTrigger(rawValue: settings.voiceHotkeyTrigger) ?? .option
     }
 
     // MARK: - Control
@@ -114,14 +165,18 @@ final class VoiceDictation: ObservableObject, @unchecked Sendable {
 
     /// Ask for microphone access asynchronously (never blocks the UI), then record.
     /// Requesting permission implicitly via `engine.start()` could hang the app.
-    private func requestAndStart() {
+    private func requestAndStart(fromHold: Bool = false) {
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
         case .authorized:
             beginRecording()
         case .notDetermined:
             AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
                 DispatchQueue.main.async {
-                    if granted { self?.beginRecording() } else { self?.status = .idle }
+                    guard let self else { return }
+                    // A push-to-talk key released during the permission prompt
+                    // must not leave a recording running with nothing to stop it.
+                    if granted, !fromHold || self.holdActive { self.beginRecording() }
+                    else { self.startedByHold = false; self.status = .idle }
                 }
             }
         default:
@@ -131,8 +186,19 @@ final class VoiceDictation: ObservableObject, @unchecked Sendable {
 
     private func beginRecording() {
         audio.clear()
+        // Use a fresh engine each time. A long-lived engine caches the input
+        // hardware format, so after the audio device changes (HDMI/TV, a headset,
+        // Bluetooth) its inputNode reports a stale format; installTap would then
+        // throw an Obj-C exception Swift can't catch, aborting the app.
+        engine = AVAudioEngine()
         let input = engine.inputNode
         let format = input.outputFormat(forBus: 0)
+        // No usable input device leaves the format at 0 Hz / 0 channels, which
+        // also makes installTap throw — bail out gracefully instead of crashing.
+        guard format.sampleRate > 0, format.channelCount > 0 else {
+            status = .idle
+            return
+        }
         recordRate = format.sampleRate
         let sink = audio   // capture the Sendable buffer, not self
         input.installTap(onBus: 0, bufferSize: 2048, format: format) { buffer, _ in

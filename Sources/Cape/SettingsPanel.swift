@@ -8,12 +8,15 @@ final class SettingsWindowController {
     private let buffer: BufferManager
     private let claude: ClaudeSessionsManager
     private let voice: VoiceDictation
+    private let updater: Updater
 
-    init(settings: Settings, buffer: BufferManager, claude: ClaudeSessionsManager, voice: VoiceDictation) {
+    init(settings: Settings, buffer: BufferManager, claude: ClaudeSessionsManager, voice: VoiceDictation,
+         updater: Updater) {
         self.settings = settings
         self.buffer = buffer
         self.claude = claude
         self.voice = voice
+        self.updater = updater
     }
 
     func show() {
@@ -27,7 +30,7 @@ final class SettingsWindowController {
             w.title = "Cape Settings"
             w.isReleasedWhenClosed = false
             w.contentView = NSHostingView(
-                rootView: SettingsView(settings: settings, voice: voice, buffer: buffer, claude: claude)
+                rootView: SettingsView(settings: settings, voice: voice, updater: updater, buffer: buffer, claude: claude)
             )
             // Place it below the expanded notch so opening it from the notch
             // doesn't overlap the panel.
@@ -58,6 +61,7 @@ final class SettingsWindowController {
 struct SettingsView: View {
     @ObservedObject var settings: Settings
     @ObservedObject var voice: VoiceDictation
+    @ObservedObject var updater: Updater
     let buffer: BufferManager
     let claude: ClaudeSessionsManager
 
@@ -67,6 +71,10 @@ struct SettingsView: View {
                 Toggle("Launch at login", isOn: $settings.launchAtLogin)
                 Toggle("Track Claude Code sessions", isOn: $settings.trackClaude)
                     .onChange(of: settings.trackClaude) { on in if on { claude.installHooks() } }
+            }
+
+            Section("Updates") {
+                UpdatesSection(updater: updater, settings: settings)
             }
 
             Section("Claude") {
@@ -111,6 +119,30 @@ struct SettingsView: View {
                 }
             }
 
+            Section("Tools") {
+                ForEach(Tool.allCases) { tool in
+                    HStack {
+                        Label(tool.name, systemImage: tool.icon)
+                        Spacer()
+                        ShortcutRecorder(shortcut: Binding(
+                            get: { settings.toolShortcuts[tool.rawValue] },
+                            set: { settings.toolShortcuts[tool.rawValue] = $0 }
+                        ), hotkeyID: tool.hotkeyID)
+                    }
+                }
+                Text("Global shortcuts need ⌘, ⌥ or ⌃. While recording, Esc cancels and ⌫ clears. No extra permissions needed.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
+            Section("Tasks") {
+                Toggle("Play a sound for reminders", isOn: $settings.reminderSound)
+                if settings.reminderSound {
+                    SoundPicker(selection: $settings.reminderSoundName)
+                }
+                Text("Add a time right in the task: “позвонить в 15:00”, “через 20 минут”, “завтра в 9”, “call mom at 3pm”. It rings beside the notch when due.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
             Section("Voice") {
                 Picker("Dictation model", selection: $settings.voiceModel) {
                     ForEach(VoiceModels.options, id: \.id) {
@@ -121,8 +153,22 @@ struct SettingsView: View {
                     ForEach(VoiceModels.languages, id: \.id) { Text($0.label).tag($0.id) }
                 }
                 Toggle("Translate to English", isOn: $settings.voiceTranslate)
-                Toggle("Global shortcut — double-tap ⌥ Option", isOn: $settings.voiceHotkey)
-                    .onChange(of: settings.voiceHotkey) { on in voice.applyHotkey(enabled: on) }
+                Toggle("Double-tap shortcut (start / stop)", isOn: $settings.voiceHotkey)
+                    .onChange(of: settings.voiceHotkey) { _ in voice.applyHotkey() }
+                if settings.voiceHotkey {
+                    Picker("Shortcut", selection: $settings.voiceHotkeyTrigger) {
+                        ForEach(VoiceHotkeyTrigger.allCases) { Text($0.label).tag($0.rawValue) }
+                    }
+                    .onChange(of: settings.voiceHotkeyTrigger) { _ in voice.updateHotkeyTrigger() }
+                }
+                Toggle("Hold 🌐 Fn to talk", isOn: $settings.voiceHoldFn)
+                    .onChange(of: settings.voiceHoldFn) { _ in voice.applyHotkey() }
+                Toggle("Hold right ⌥ Option to talk", isOn: $settings.voiceHoldRightOption)
+                    .onChange(of: settings.voiceHoldRightOption) { _ in voice.applyHotkey() }
+                if settings.voiceHoldFn || settings.voiceHoldRightOption {
+                    Text("Hold the key to record, release to transcribe. A quick press keeps working as usual. If the emoji picker pops up when you let go of 🌐, set System Settings › Keyboard › “Press 🌐 key to” › Do Nothing.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
                 Toggle("Preload model at launch (faster first dictation)", isOn: $settings.voicePreload)
 
                 if voice.status == .downloading {
@@ -200,6 +246,8 @@ struct SettingsView: View {
                         Text(module.name).tag(module.rawValue)
                     }
                 }
+                Toggle("Open Media when hovering the music island", isOn: $settings.openMediaOnHover)
+                Toggle("Show battery level when the charger connects", isOn: $settings.showCharging)
             }
         }
         .formStyle(.grouped)
@@ -270,6 +318,66 @@ struct SoundPicker: View {
             }
             .buttonStyle(.plain)
             .help("Preview this sound")
+        }
+    }
+}
+
+/// Version, "Check for Updates", and the install flow for a found release.
+private struct UpdatesSection: View {
+    @ObservedObject var updater: Updater
+    @ObservedObject var settings: Settings
+
+    var body: some View {
+        HStack {
+            Text("Cape \(updater.currentVersion)")
+            Spacer()
+            Button("Check for Updates") { updater.check() }
+                .disabled(updater.isBusy)
+        }
+        status
+        Toggle("Check for updates automatically", isOn: $settings.autoCheckUpdates)
+    }
+
+    @ViewBuilder private var status: some View {
+        switch updater.state {
+        case .idle:
+            EmptyView()
+        case .checking:
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text("Checking GitHub…").foregroundStyle(.secondary)
+            }
+        case .upToDate:
+            Label("You're up to date", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+        case .available(let release):
+            VStack(alignment: .leading, spacing: 8) {
+                Label("Cape \(release.version) is available", systemImage: "arrow.down.circle.fill")
+                    .font(.headline).foregroundStyle(Color.coral)
+                if !release.notes.isEmpty {
+                    Text(release.notes)
+                        .font(.caption).foregroundStyle(.secondary)
+                        .lineLimit(8)
+                }
+                HStack {
+                    Button("Release notes") { NSWorkspace.shared.open(release.page) }
+                    Spacer()
+                    Button("Install & Relaunch") { updater.install(release) }
+                        .buttonStyle(.borderedProminent)
+                        .tint(Color.coral)
+                }
+            }
+        case .downloading(let progress):
+            HStack(spacing: 10) {
+                ProgressView(value: progress)
+                Text("\(Int(progress * 100))%").font(.caption).monospacedDigit().foregroundStyle(.secondary)
+            }
+        case .installing:
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text("Installing — Cape will relaunch…").foregroundStyle(.secondary)
+            }
+        case .failed(let message):
+            Label(message, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
         }
     }
 }

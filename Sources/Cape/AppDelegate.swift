@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.applicationIconImage = icon
         }
         setupMainMenu()
+        if Screenshots.outputDir != nil { Screenshots.capture(modules); return }
         controller = NotchController(modules: modules)
         modules.voice.preloadIfReady()   // warm the dictation model so the first use isn't slow
     }

@@ -59,7 +59,23 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-codesign --force --deep --sign - "$APP" 2>/dev/null || true
+# Sign with the stable "Cape Signing" certificate when it's in the keychain (CI
+# imports it from secrets). Its designated requirement pins the certificate, not
+# this build's hash — so macOS permissions (Accessibility, Microphone) survive
+# rebuilds and updates, and the in-app updater can verify a download came from
+# the same key. Without it: ad-hoc (permissions reset on every build).
+SIGN_ID="${SIGN_ID:-$(security find-identity -p codesigning 2>/dev/null | awk '/"Cape Signing"/ { print $2; exit }')}"
+if [ -n "$SIGN_ID" ]; then
+  echo "==> Signing with Cape Signing ($SIGN_ID)"
+  codesign --force --deep --sign "$SIGN_ID" "$APP"
+  codesign --verify --deep --strict "$APP"
+elif [ "${REQUIRE_SIGNING:-0}" = "1" ]; then
+  echo "error: REQUIRE_SIGNING=1 but no 'Cape Signing' identity is available" >&2
+  exit 1
+else
+  echo "==> No 'Cape Signing' identity — ad-hoc signing (permissions reset on every build)"
+  codesign --force --deep --sign - "$APP" 2>/dev/null || true
+fi
 
 echo "==> Done: $(pwd)/$APP"
 echo "    Run:  open $APP"

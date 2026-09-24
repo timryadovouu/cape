@@ -31,6 +31,7 @@ struct ExpandedPanel: View {
     @ObservedObject var state: NotchState
     @ObservedObject var settings: Settings
     @ObservedObject var system: SystemStats
+    @ObservedObject var updater: Updater
     let modules: AppModules
     let notchWidth: CGFloat
     let topInset: CGFloat
@@ -46,12 +47,16 @@ struct ExpandedPanel: View {
             headerMetrics.frame(height: topInset)
             rail
             Group {
-                switch current {
-                case .media: MediaPanel(media: modules.media)
-                case .timer: PomodoroPanel(model: modules.pomodoro, claude: modules.claude)
-                case .tasks: TodoPanel(store: modules.todo, state: state)
-                case .buffer: BufferPanel(manager: modules.buffer, state: state, voice: modules.voice)
-                case .screenTime: ScreenTimePanel(usage: modules.usage, state: state, settings: settings)
+                if state.showingTools {
+                    ToolsPanel(settings: settings, state: state, modules: modules)
+                } else {
+                    switch current {
+                    case .media: MediaPanel(media: modules.media)
+                    case .timer: PomodoroPanel(model: modules.pomodoro, claude: modules.claude)
+                    case .tasks: TodoPanel(store: modules.todo, state: state)
+                    case .buffer: BufferPanel(manager: modules.buffer, state: state, voice: modules.voice)
+                    case .screenTime: ScreenTimePanel(usage: modules.usage, state: state, settings: settings)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -110,10 +115,23 @@ struct ExpandedPanel: View {
             ForEach(settings.enabledModules) { module in
                 tab(module)
             }
+            // Tabs on the left; actions (tools, settings, quit) on the right.
+            Rectangle().fill(Color.white.opacity(0.12)).frame(width: 1, height: 20)
+            toolsButton
             iconButton("gearshape.fill",
                        tint: Color(red: 0.980, green: 0.514, blue: 0.302), // #FA834D coral
                        help: "Settings") {
                 modules.settingsWindow.toggle()
+            }
+            .overlay(alignment: .topTrailing) {
+                // An update is waiting — a dot on the gear, like an app badge.
+                if updater.availableRelease != nil {
+                    Circle().fill(Color.coral)
+                        .frame(width: 8, height: 8)
+                        .overlay(Circle().strokeBorder(Color.black, lineWidth: 1.5))
+                        .offset(x: 2, y: -2)
+                        .help("Update available — see Settings")
+                }
             }
             Button { NSApp.terminate(nil) } label: {
                 Text("Quit")
@@ -128,8 +146,29 @@ struct ExpandedPanel: View {
         }
     }
 
+    /// Opens the Tools page (pick color, clean keyboard, …) — styled like a tab.
+    private var toolsButton: some View {
+        let active = state.showingTools
+        return Button { state.showingTools.toggle() } label: {
+            Image(systemName: "square.grid.2x2.fill")
+                .font(.system(size: 13, weight: active ? .bold : .medium))
+                .frame(width: 40, height: 32)
+                .foregroundStyle(active ? .white : .white.opacity(0.5))
+                .background(
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .fill(active ? Color.white.opacity(0.24) : Color.white.opacity(0.07))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .strokeBorder(Color.white.opacity(active ? 0.35 : 0), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .help("Tools")
+    }
+
     private func tab(_ module: Module) -> some View {
-        let active = current == module
+        let active = current == module && !state.showingTools
         return Button { state.selectModule(module) } label: {
             Image(systemName: module.icon)
                 .font(.system(size: 13, weight: active ? .bold : .medium))

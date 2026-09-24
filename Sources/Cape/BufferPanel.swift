@@ -17,11 +17,14 @@ struct BufferPanel: View {
             } else {
                 ScrollView {
                     VStack(spacing: 6) {
-                        ForEach(manager.recent) { item in
-                            BufferRow(item: item,
-                                      onFavorite: { manager.toggleFavorite(item) },
-                                      onCopy: { manager.copyToPasteboard(item) },
-                                      onDelete: { manager.delete(item) })
+                        ForEach(sections, id: \.title) { section in
+                            sectionHeader(section.title)
+                            ForEach(section.items) { item in
+                                BufferRow(item: item,
+                                          onFavorite: { manager.toggleFavorite(item) },
+                                          onCopy: { manager.copyToPasteboard(item) },
+                                          onDelete: { manager.delete(item) })
+                            }
                         }
                     }
                     .padding(.vertical, 2)
@@ -85,6 +88,52 @@ struct BufferPanel: View {
             GrabberBar(state: state)
         }
     }
+
+    // MARK: - Day sections
+
+    /// Pinned favorites first, then one group per calendar day (newest first —
+    /// `recent` is already sorted that way).
+    private var sections: [(title: String, items: [BufferItem])] {
+        var out: [(title: String, items: [BufferItem])] = []
+        let pinned = manager.recent.filter(\.isFavorite)
+        if !pinned.isEmpty { out.append((Self.pinnedTitle, pinned)) }
+        for item in manager.recent where !item.isFavorite {
+            let title = Self.dayTitle(item.date)
+            if out.last?.title == title { out[out.count - 1].items.append(item) }
+            else { out.append((title, [item])) }
+        }
+        return out
+    }
+
+    private static let pinnedTitle = "Pinned"
+
+    private func sectionHeader(_ title: String) -> some View {
+        HStack(spacing: 4) {
+            if title == Self.pinnedTitle {
+                Image(systemName: "star.fill").font(.system(size: 8))
+                    .foregroundStyle(Color(red: 1.0, green: 0.78, blue: 0.28))
+            }
+            Text(title.uppercased())
+                .font(.system(size: 9, weight: .semibold))
+                .tracking(0.6)
+                .foregroundStyle(.white.opacity(0.4))
+            Spacer()
+        }
+        .padding(.leading, 4)
+        .padding(.top, 2)
+    }
+
+    /// "Today" / "Yesterday" / "Mon, 22 Sep".
+    static func dayTitle(_ date: Date) -> String {
+        let cal = Calendar.current
+        if cal.isDateInToday(date) { return "Today" }
+        if cal.isDateInYesterday(date) { return "Yesterday" }
+        return dayFormatter.string(from: date)
+    }
+
+    private static let dayFormatter: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "EEE, d MMM"; return f
+    }()
 
     private var micEnabled: Bool {
         (voice.status == .idle && voice.modelDownloaded) || voice.status == .recording
@@ -250,11 +299,17 @@ private struct BufferRow: View {
     }
 
     private var subtitle: String {
+        let kind: String
         switch item.kind {
-        case .text: return "Text"
-        case .image: return "Image · \(item.name)"
-        case .file: return item.url.pathExtension.uppercased().isEmpty
+        case .text: kind = "Text"
+        case .image: kind = "Image · \(item.name)"
+        case .file: kind = item.url.pathExtension.uppercased().isEmpty
             ? "File" : item.url.pathExtension.uppercased()
         }
+        return "\(Self.timeFormatter.string(from: item.date)) · \(kind)"
     }
+
+    private static let timeFormatter: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "HH:mm"; return f
+    }()
 }

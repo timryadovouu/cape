@@ -8,6 +8,7 @@ struct NotchRootView: View {
     @ObservedObject var media: MediaController
     @ObservedObject var claude: ClaudeSessionsManager
     @ObservedObject var settings: Settings
+    @ObservedObject var todo: TodoStore
     let modules: AppModules
     let metrics: NotchMetrics
 
@@ -21,9 +22,10 @@ struct NotchRootView: View {
 
     static let timerPillWidth: CGFloat = 70
     static let pomodoroControlsWidth: CGFloat = 94   // inline pause / next / cancel strip
+    static let mediaIslandWidth: CGFloat = 40        // equalizer / pause glyph, left of the camera
     private let timerPillW = NotchRootView.timerPillWidth
     private let buttonsW = NotchRootView.pomodoroControlsWidth
-    private let eqW: CGFloat = 40
+    private let eqW = NotchRootView.mediaIslandWidth
     private let claudeW: CGFloat = 20   // small coral island; the pulsing dot sits centered
     // Extra black bled onto the menu bar on each side, to hide the 1px seam
     // between the pure-black notch and the tinted menu bar.
@@ -50,10 +52,26 @@ struct NotchRootView: View {
     private var showClaude: Bool { !state.expanded && settings.trackClaude && claude.anyWorking }
     private var claudeExt: CGFloat { showClaude ? claudeW : 0 }
 
+    /// Task reminder that came due — outermost on the right until looked at.
+    private var showReminder: Bool { !state.expanded && !todo.ringing.isEmpty }
+    private var reminderText: String { Self.reminderText(todo.ringing) }
+    private var reminderExt: CGFloat { showReminder ? Self.reminderWidth(reminderText) : 0 }
+
+    /// "Call mom" / "Call mom +2" — the first ringing task, trimmed.
+    static func reminderText(_ ringing: [TodoItem]) -> String {
+        guard let first = ringing.first else { return "" }
+        let title = first.title.count > 24 ? String(first.title.prefix(23)) + "…" : first.title
+        return ringing.count > 1 ? "\(title) +\(ringing.count - 1)" : title
+    }
+    static func reminderWidth(_ text: String) -> CGFloat {
+        min(230, 40 + CGFloat(text.count) * 6.6)
+    }
+
     /// Left extension shows either a transient alert or a music equalizer.
     private var leftExt: CGFloat {
         guard !state.expanded else { return 0 }
         if let alert = state.alert {
+            if alert.battery != nil { return 96 }
             return alert.text == nil ? 46 : 50 + CGFloat(alert.text?.count ?? 0) * 7.5
         }
         if playing || paused { return eqW }   // same width so ⏯ doesn't shift the notch
@@ -61,12 +79,12 @@ struct NotchRootView: View {
     }
 
     private var islandW: CGFloat {
-        state.expanded ? Self.panelWidth : notchW + leftExt + claudeExt + rightExt + bleed * 2
+        state.expanded ? Self.panelWidth : notchW + leftExt + claudeExt + rightExt + reminderExt + bleed * 2
     }
     private var islandH: CGFloat { (state.expanded ? Self.expandedHeight(state.tall) : notchH) + Self.topOvershoot }
     private var radius: CGFloat { state.expanded ? 28 : min(13, notchH / 2) }
     // Shift the center so the middle (notch) portion stays over the camera.
-    private var centerShift: CGFloat { state.expanded ? 0 : (claudeExt + rightExt - leftExt) / 2 }
+    private var centerShift: CGFloat { state.expanded ? 0 : (claudeExt + rightExt + reminderExt - leftExt) / 2 }
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -96,6 +114,7 @@ struct NotchRootView: View {
                 .animation(.spring(response: 0.3, dampingFraction: 0.78), value: playing)
                 .animation(.spring(response: 0.3, dampingFraction: 0.78), value: paused)
                 .animation(.spring(response: 0.3, dampingFraction: 0.78), value: showClaude)
+                .animation(.spring(response: 0.34, dampingFraction: 0.7), value: reminderText)
                 .animation(.spring(response: 0.34, dampingFraction: 0.84), value: state.tall)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -112,7 +131,7 @@ struct NotchRootView: View {
     @ViewBuilder private var islandContent: some View {
         if state.expanded {
             ExpandedPanel(state: state, settings: modules.settings, system: modules.system,
-                          modules: modules, notchWidth: notchW,
+                          updater: modules.updater, modules: modules, notchWidth: notchW,
                           topInset: notchH + Self.topOvershoot)
                 .transition(.opacity)
         } else {
@@ -124,7 +143,10 @@ struct NotchRootView: View {
         HStack(spacing: 0) {
             // Left extension — alert, or music equalizer while playing.
             ZStack {
-                if let alert = state.alert {
+                if let alert = state.alert, let level = alert.battery {
+                    ChargingBadge(level: level)
+                        .transition(.scale.combined(with: .opacity))
+                } else if let alert = state.alert {
                     HStack(spacing: 5) {
                         Image(systemName: alert.icon)
                             .font(.system(size: 11, weight: .semibold))
@@ -182,6 +204,23 @@ struct NotchRootView: View {
                 }
             }
             .frame(width: rightExt)
+
+            // Reminder — outermost on the right, until hovered.
+            ZStack {
+                if showReminder {
+                    HStack(spacing: 5) {
+                        RingingBell()
+                        Text(reminderText)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
+                    .padding(.horizontal, 6)
+                    .transition(.scale(scale: 0.6, anchor: .leading).combined(with: .opacity))
+                }
+            }
+            .frame(width: reminderExt)
         }
         .frame(height: notchH)
         .padding(.top, Self.topOvershoot)   // keep content below the extended black top
@@ -248,6 +287,74 @@ struct EqualizerBars: View {
         let p = Double(i)
         let v = 0.5 + 0.30 * sin(t * 5.3 + p * 2.1) + 0.20 * sin(t * 9.7 + p * 4.3)
         return 4 + min(1, max(0, v)) * 12
+    }
+}
+
+/// Charger-connected flash: the bolt springs in with a pulsing coral glow, a
+/// mini battery fills up to the current level, then the percent fades in.
+struct ChargingBadge: View {
+    let level: Double   // 0…1
+
+    @State private var boltIn = false
+    @State private var glow = false
+    @State private var fill = 0.0
+    @State private var textIn = false
+
+    private let bodyW: CGFloat = 22, bodyH: CGFloat = 11, inset: CGFloat = 1.5
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: "bolt.fill")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(Color.coral)
+                .shadow(color: Color.coral.opacity(glow ? 0.95 : 0.2), radius: glow ? 5 : 1)
+                .scaleEffect(boltIn ? 1 : 0.2)
+                .rotationEffect(.degrees(boltIn ? 0 : -25))
+
+            HStack(spacing: 1) {
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.55), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                        .fill(Color.coral)
+                        .frame(width: max(0, (bodyW - inset * 2) * fill), height: bodyH - inset * 2)
+                        .padding(.leading, inset)
+                }
+                .frame(width: bodyW, height: bodyH)
+                Capsule().fill(Color.white.opacity(0.55)).frame(width: 1.5, height: 4)
+            }
+
+            Text("\(Int((level * 100).rounded()))%")
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(.white)
+                .fixedSize()
+                .opacity(textIn ? 1 : 0)
+                .offset(x: textIn ? 0 : -4)
+        }
+        .onAppear {
+            withAnimation(.spring(response: 0.38, dampingFraction: 0.45)) { boltIn = true }
+            withAnimation(.easeOut(duration: 0.9).delay(0.15)) { fill = level }
+            withAnimation(.easeOut(duration: 0.3).delay(0.55)) { textIn = true }
+            withAnimation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true).delay(0.3)) { glow = true }
+        }
+    }
+}
+
+/// Coral bell that rings in short bursts (a quick wiggle every ~2.4 s) — the
+/// task-reminder glyph beside the brow.
+struct RingingBell: View {
+    var body: some View {
+        TimelineView(.animation) { timeline in
+            let t = timeline.date.timeIntervalSinceReferenceDate
+            let phase = t.truncatingRemainder(dividingBy: 2.4)
+            let envelope = phase < 0.7 ? 1 - phase / 0.7 : 0
+            Image(systemName: "bell.fill")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(Color.coral)
+                .rotationEffect(.degrees(envelope * 18 * sin(t * 30)), anchor: .top)
+                .shadow(color: Color.coral.opacity(0.6 * envelope), radius: 4)
+        }
     }
 }
 
