@@ -27,9 +27,6 @@ struct NotchRootView: View {
     private let buttonsW = NotchRootView.pomodoroControlsWidth
     private let eqW = NotchRootView.mediaIslandWidth
     private let claudeW: CGFloat = 20   // small coral island; the pulsing dot sits centered
-    // Extra black bled onto the menu bar on each side, to hide the 1px seam
-    // between the pure-black notch and the tinted menu bar.
-    private let bleed: CGFloat = 2
     // The window is shifted up by this much (see NotchController); the island is
     // grown upward by the same amount so black covers the very top rows with no
     // thin gap, while everything below stays put.
@@ -79,7 +76,9 @@ struct NotchRootView: View {
     }
 
     private var islandW: CGFloat {
-        state.expanded ? Self.panelWidth : notchW + leftExt + claudeExt + rightExt + reminderExt + bleed * 2
+        // Collapsed, a side with no island ends exactly at the cutout's edge (the
+        // window is centered on the physical notch — see NotchMetrics.centerX).
+        state.expanded ? Self.panelWidth : notchW + leftExt + claudeExt + rightExt + reminderExt
     }
     private var islandH: CGFloat { (state.expanded ? Self.expandedHeight(state.tall) : notchH) + Self.topOvershoot }
     private var radius: CGFloat { state.expanded ? 28 : min(13, notchH / 2) }
@@ -89,34 +88,33 @@ struct NotchRootView: View {
     var body: some View {
         ZStack(alignment: .top) {
             Color.clear
-            islandContent
-                .frame(width: islandW, height: islandH, alignment: .top)
-                .background(Color.black)
-                .clipShape(
-                    UnevenRoundedRectangle(
-                        cornerRadii: .init(bottomLeading: radius, bottomTrailing: radius),
-                        style: .continuous
-                    )
-                )
+            // The black shape — the only thing that morphs between brow and panel.
+            // With a side island (music, timer, Claude…) the brow sits off-center,
+            // so the shape also travels sideways to the centered panel.
+            UnevenRoundedRectangle(cornerRadii: .init(bottomLeading: radius, bottomTrailing: radius),
+                                   style: .continuous)
+                .fill(Color.black)
                 .overlay(
-                    UnevenRoundedRectangle(
-                        cornerRadii: .init(bottomLeading: radius, bottomTrailing: radius),
-                        style: .continuous
-                    )
-                    .strokeBorder(Color.white.opacity(state.expanded ? 0.09 : 0), lineWidth: 1)
+                    UnevenRoundedRectangle(cornerRadii: .init(bottomLeading: radius, bottomTrailing: radius),
+                                           style: .continuous)
+                        .strokeBorder(Color.white.opacity(state.expanded ? 0.09 : 0), lineWidth: 1)
                 )
                 .shadow(color: .black.opacity(state.expanded ? 0.55 : 0), radius: 16, y: 8)
+                .frame(width: islandW, height: islandH)
                 .offset(x: centerShift)
-                .animation(.spring(response: 0.26, dampingFraction: 0.86), value: state.expanded)
-                .animation(.spring(response: 0.28, dampingFraction: 0.72), value: state.alert)
-                .animation(.spring(response: 0.3, dampingFraction: 0.78), value: pomodoro.isActive)
-                .animation(.spring(response: 0.3, dampingFraction: 0.78), value: state.pomodoroControls)
-                .animation(.spring(response: 0.3, dampingFraction: 0.78), value: playing)
-                .animation(.spring(response: 0.3, dampingFraction: 0.78), value: paused)
-                .animation(.spring(response: 0.3, dampingFraction: 0.78), value: showClaude)
-                .animation(.spring(response: 0.34, dampingFraction: 0.7), value: reminderText)
-                .animation(.spring(response: 0.34, dampingFraction: 0.84), value: state.tall)
+            // The content is a separate layer laid out in its *final* place, so it
+            // never rides along with that sideways travel.
+            content
         }
+        .animation(.spring(response: 0.26, dampingFraction: 0.86), value: state.expanded)
+        .animation(.spring(response: 0.28, dampingFraction: 0.72), value: state.alert)
+        .animation(.spring(response: 0.3, dampingFraction: 0.78), value: pomodoro.isActive)
+        .animation(.spring(response: 0.3, dampingFraction: 0.78), value: state.pomodoroControls)
+        .animation(.spring(response: 0.3, dampingFraction: 0.78), value: playing)
+        .animation(.spring(response: 0.3, dampingFraction: 0.78), value: paused)
+        .animation(.spring(response: 0.3, dampingFraction: 0.78), value: showClaude)
+        .animation(.spring(response: 0.34, dampingFraction: 0.7), value: reminderText)
+        .animation(.spring(response: 0.34, dampingFraction: 0.84), value: state.tall)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         // Fill into the notch/menu-bar safe area so no thin gap shows at the top.
         .ignoresSafeArea(.all)
@@ -128,16 +126,34 @@ struct NotchRootView: View {
         }
     }
 
-    @ViewBuilder private var islandContent: some View {
+    @ViewBuilder private var content: some View {
         if state.expanded {
             ExpandedPanel(state: state, settings: modules.settings, system: modules.system,
                           updater: modules.updater, modules: modules, notchWidth: notchW,
                           topInset: notchH + Self.topOvershoot)
-                .transition(.opacity)
+                .frame(width: Self.panelWidth, height: islandH, alignment: .top)
+                .clipShape(UnevenRoundedRectangle(cornerRadii: .init(bottomLeading: 28, bottomTrailing: 28),
+                                                  style: .continuous))
+                .transition(Self.panelSwap)
         } else {
             collapsed
+                .frame(width: islandW, height: islandH, alignment: .top)
+                .offset(x: centerShift)
+                .transition(Self.browSwap)
         }
     }
+
+    /// The panel fades in a beat late — once the shape has grown under it, so no
+    /// text shows past its edge — and vanishes at once when closing.
+    private static let panelSwap = AnyTransition.asymmetric(
+        insertion: .opacity.animation(.easeOut(duration: 0.16).delay(0.1)),
+        removal: .opacity.animation(.easeIn(duration: 0.06))
+    )
+    /// The brow's islands (⏸, timer, …) are back immediately on close.
+    private static let browSwap = AnyTransition.asymmetric(
+        insertion: .opacity.animation(.easeOut(duration: 0.12)),
+        removal: .opacity.animation(.easeIn(duration: 0.06))
+    )
 
     private var collapsed: some View {
         HStack(spacing: 0) {

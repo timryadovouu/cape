@@ -4,6 +4,22 @@ All notable changes to Cape are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.3.3] — 2026-09-24
+
+### Changed
+- **Smoother open & close** — only the black shape morphs now; the content
+  appears already in place instead of riding along, so nothing slides sideways
+  when a side island (music, timer, Claude…) is showing, and the paused ⏸ is back
+  the moment the panel closes.
+
+### Fixed
+- The brow is centered on the physical notch (not the screen's middle, which can
+  be half a point off) and no longer pokes past the cutout's edge.
+- **Check for Updates** no longer fails with *"Couldn't read the latest release
+  from GitHub"* once GitHub's API limit (60 requests an hour per IP — easy to hit
+  on a VPN) is used up: the check now follows the plain release links, and the
+  release notes load when available.
+
 ## [0.3.2] — 2026-09-24
 
 ### Added
@@ -205,6 +221,7 @@ Initial public beta.
 - A standalone **Settings** window, Launch at login, and GitHub Actions CI +
   releases.
 
+[0.3.3]: https://github.com/timryadovouu/cape/releases/tag/v0.3.3
 [0.3.2]: https://github.com/timryadovouu/cape/releases/tag/v0.3.2
 [0.3.1]: https://github.com/timryadovouu/cape/releases/tag/v0.3.1
 [0.3.0]: https://github.com/timryadovouu/cape/releases/tag/v0.3.0

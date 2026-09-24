@@ -8,6 +8,10 @@ struct NotchMetrics {
     let notchWidth: CGFloat
     let notchHeight: CGFloat
     let hasRealNotch: Bool
+    /// Horizontal center of the physical notch (screen coordinates). Not always
+    /// the screen's midX — e.g. 755.5 vs 756 on a 14" MacBook Pro — and half a
+    /// point off is enough to show a sliver of black past the cutout's edge.
+    let centerX: CGFloat
 
     /// The physical notch only exists on the built-in laptop display, so anchor
     /// there: prefer a screen with a real notch, else the built-in display.
@@ -37,18 +41,21 @@ struct NotchMetrics {
         let height: CGFloat = hasNotch ? topInset : 32
 
         var width: CGFloat = 200
+        var centerX = frame.midX
         if hasNotch,
            let left = screen.auxiliaryTopLeftArea?.width,
            let right = screen.auxiliaryTopRightArea?.width,
            left > 0, right > 0 {
             width = frame.width - left - right
+            centerX = frame.minX + left + width / 2
         }
 
         return NotchMetrics(
             screenFrame: frame,
             notchWidth: width,
             notchHeight: max(height, 30),
-            hasRealNotch: hasNotch
+            hasRealNotch: hasNotch,
+            centerX: centerX
         )
     }
 }

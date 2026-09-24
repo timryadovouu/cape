@@ -108,7 +108,7 @@ final class NotchController {
 
     private func positionWindow() {
         let f = metrics.screenFrame
-        let x = f.midX - windowWidth / 2
+        let x = metrics.centerX - windowWidth / 2
         // Push the top a few points above the screen edge so the black fully
         // covers the very top rows (no thin menu-bar line showing through).
         let y = f.maxY - windowHeight + NotchRootView.topOvershoot
@@ -133,7 +133,7 @@ final class NotchController {
         let f = metrics.screenFrame
         let w = metrics.notchWidth + 24
         let bottom = f.maxY - metrics.notchHeight - 2
-        return NSRect(x: f.midX - w / 2, y: bottom, width: w, height: f.maxY - bottom + 40)
+        return NSRect(x: metrics.centerX - w / 2, y: bottom, width: w, height: f.maxY - bottom + 40)
     }
 
     /// Expanded panel zone (with margin), in screen coordinates.
@@ -142,7 +142,7 @@ final class NotchController {
         let pad: CGFloat = 12
         let w = NotchRootView.panelWidth + pad * 2
         let bottom = f.maxY - NotchRootView.expandedHeight(state.tall) - pad
-        return NSRect(x: f.midX - w / 2, y: bottom, width: w, height: f.maxY - bottom + 40)
+        return NSRect(x: metrics.centerX - w / 2, y: bottom, width: w, height: f.maxY - bottom + 40)
     }
 
     private func updateHover() {
@@ -184,7 +184,7 @@ final class NotchController {
             (modules.settings.trackClaude && modules.claude.anyWorking) ? 20 : 0
         let rightTotal = NotchRootView.timerPillWidth
             + (state.pomodoroControls ? NotchRootView.pomodoroControlsWidth : 0)
-        let startX = f.midX + metrics.notchWidth / 2 + claudeExt
+        let startX = metrics.centerX + metrics.notchWidth / 2 + claudeExt
         let bottom = f.maxY - metrics.notchHeight - 2
         return NSRect(x: startX - 6, y: bottom,
                       width: rightTotal + 12, height: f.maxY - bottom + 40)
@@ -201,7 +201,7 @@ final class NotchController {
               state.alert == nil,
               modules.settings.isEnabled(.media) else { return nil }
         let f = metrics.screenFrame
-        let endX = f.midX - metrics.notchWidth / 2
+        let endX = metrics.centerX - metrics.notchWidth / 2
         let w = NotchRootView.mediaIslandWidth
         let bottom = f.maxY - metrics.notchHeight - 2
         return NSRect(x: endX - w - 6, y: bottom,
@@ -220,7 +220,7 @@ final class NotchController {
             ? NotchRootView.timerPillWidth
                 + (state.pomodoroControls ? NotchRootView.pomodoroControlsWidth : 0)
             : 0
-        let startX = f.midX + metrics.notchWidth / 2 + claudeExt + timerExt
+        let startX = metrics.centerX + metrics.notchWidth / 2 + claudeExt + timerExt
         let w = NotchRootView.reminderWidth(NotchRootView.reminderText(ringing))
         let bottom = f.maxY - metrics.notchHeight - 2
         return NSRect(x: startX, y: bottom, width: w + 6, height: f.maxY - bottom + 40)

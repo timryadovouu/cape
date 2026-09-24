@@ -3,8 +3,8 @@ import Security
 
 /// In-app updates from GitHub Releases — no Apple Developer ID needed.
 ///
-/// Check: ask the GitHub API for the latest (non-pre-)release and compare its tag
-/// with our version. Install: download `Cape.zip`, unpack it next to the running
+/// Check: follow GitHub's `releases/latest` redirect to the newest (non-pre-)
+/// release's tag and compare it with our version. Install: download `Cape.zip`, unpack it next to the running
 /// app, and **only if the new app is sealed by the same signing certificate as
 /// this one** (our own designated requirement) swap it in and relaunch.
 ///
@@ -98,24 +98,43 @@ final class Updater: ObservableObject {
         }
     }
 
+    /// Find the latest release without the GitHub REST API: its anonymous limit
+    /// (60 requests an hour per IP) runs out easily — a VPN or office network
+    /// shares one IP — and then every check failed. The web endpoints have no
+    /// such limit: `github.com/<repo>/releases/latest` redirects to
+    /// `…/releases/tag/vX.Y.Z`, and the asset lives at a predictable URL.
     private static func fetchLatest() async throws -> Release {
-        var req = URLRequest(url: URL(string: "https://api.github.com/repos/\(repo)/releases/latest")!)
-        req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-        req.timeoutInterval = 20
-        let (data, response) = try await URLSession.shared.data(for: req)
-        guard (response as? HTTPURLResponse)?.statusCode == 200,
-              let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let tag = json["tag_name"] as? String
-        else { throw UpdateError("Couldn't read the latest release from GitHub.") }
-        let assets = json["assets"] as? [[String: Any]] ?? []
-        let zipURL = assets.first(where: { ($0["name"] as? String) == "Cape.zip" })
-            .flatMap { $0["browser_download_url"] as? String }
-            .flatMap(URL.init(string:))
-        let page = (json["html_url"] as? String).flatMap(URL.init(string:))
-            ?? URL(string: "https://github.com/\(repo)/releases")!
+        var latest = URLRequest(url: URL(string: "https://github.com/\(repo)/releases/latest")!)
+        latest.httpMethod = "HEAD"
+        latest.timeoutInterval = 20
+        let (_, response) = try await URLSession.shared.data(for: latest)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200,
+              let page = http.url, page.pathComponents.dropLast().last == "tag",
+              let tag = page.pathComponents.last
+        else { throw UpdateError("Couldn't find the latest release on GitHub — try again later.") }
+
+        let zip = URL(string: "https://github.com/\(repo)/releases/download/\(tag)/Cape.zip")!
+        var asset = URLRequest(url: zip)
+        asset.httpMethod = "HEAD"
+        asset.timeoutInterval = 20
+        let hasZip = ((try? await URLSession.shared.data(for: asset))?.1 as? HTTPURLResponse)?.statusCode == 200
+
         return Release(version: tag.hasPrefix("v") ? String(tag.dropFirst()) : tag,
-                       notes: (json["body"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines),
-                       zipURL: zipURL, page: page)
+                       notes: await notes(for: tag) ?? "",
+                       zipURL: hasZip ? zip : nil, page: page)
+    }
+
+    /// Release notes, best-effort from the REST API — skipped quietly when its
+    /// rate limit is used up (the update is still offered, with a notes link).
+    private static func notes(for tag: String) async -> String? {
+        var req = URLRequest(url: URL(string: "https://api.github.com/repos/\(repo)/releases/tags/\(tag)")!)
+        req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        req.timeoutInterval = 10
+        guard let (data, response) = try? await URLSession.shared.data(for: req),
+              (response as? HTTPURLResponse)?.statusCode == 200,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let body = json["body"] as? String else { return nil }
+        return body.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// Compare the numeric part ("0.3.0" of "0.3.0-4-gabc") component by component.
