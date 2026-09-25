@@ -241,20 +241,77 @@ struct ToolsPanel: View {
     let modules: AppModules
 
     var body: some View {
+        if state.showingPorts {
+            PortsPage(ports: modules.ports) { state.showingPorts = false }
+        } else {
+            grid
+        }
+    }
+
+    private var grid: some View {
         VStack(spacing: 8) {
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)],
                       spacing: 8) {
-                ForEach(Tool.allCases) { tool in
-                    ToolTile(tool: tool, shortcut: settings.toolShortcuts[tool.rawValue]) {
-                        modules.run(tool, state: state)
-                    }
-                }
+                tile(.colorPicker)
+                tile(.cleanKeyboard)
+                ToggleTile(name: "Reverse wheel", detail: "Mouse only, trackpad stays",
+                           icon: "computermouse", isOn: $settings.reverseMouseScroll)
+                ToggleTile(name: "QR in images", detail: "Adds links from screenshots",
+                           icon: "qrcode.viewfinder", isOn: $settings.scanQRInImages)
             }
+            PortsBar(ports: modules.ports) { state.showingPorts = true }
             Spacer(minLength: 0)
-            Text("Set a shortcut for any tool in Settings › Tools")
-                .font(.system(size: 10))
-                .foregroundStyle(.white.opacity(0.35))
+            Button { modules.settingsWindow.show(.tools) } label: {
+                Text("Set a shortcut for any tool in Settings › Tools")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.white.opacity(0.35))
+                    .underline()
+            }
+            .buttonStyle(.plain)
         }
+    }
+
+    private func tile(_ tool: Tool) -> some View {
+        ToolTile(tool: tool, shortcut: settings.toolShortcuts[tool.rawValue]) {
+            modules.run(tool, state: state)
+        }
+    }
+}
+
+/// A tool that stays on (a switch, not a one-shot) — same size as a ToolTile.
+private struct ToggleTile: View {
+    let name: String
+    let detail: String
+    let icon: String
+    @Binding var isOn: Bool
+    @State private var hovering = false
+
+    var body: some View {
+        Button { isOn.toggle() } label: {
+            HStack(spacing: 10) {
+                Image(systemName: icon)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(isOn ? Color.coral : .white.opacity(0.5))
+                    .frame(width: 34, height: 34)
+                    .background((isOn ? Color.coral : .white).opacity(isOn ? 0.14 : 0.08))
+                    .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(name).font(.system(size: 12, weight: .semibold))
+                    Text(detail)
+                        .font(.system(size: 10))
+                        .foregroundStyle(.white.opacity(0.45))
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 0)
+                CoralSwitch(isOn: isOn)
+            }
+            .padding(8)
+            .background(Color.white.opacity(hovering ? 0.12 : 0.06))
+            .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
     }
 }
 
@@ -290,7 +347,7 @@ private struct ToolTile: View {
                         .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
                 }
             }
-            .padding(10)
+            .padding(8)
             .background(Color.white.opacity(hovering ? 0.12 : 0.06))
             .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
             .contentShape(Rectangle())

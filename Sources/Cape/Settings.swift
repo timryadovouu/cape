@@ -8,6 +8,7 @@ final class Settings: ObservableObject {
     @Published var bufferRootPath: String { didSet { d.set(bufferRootPath, forKey: "bufferRootPath") } }
     @Published var bufferRetentionDays: Int { didSet { d.set(bufferRetentionDays, forKey: "bufferRetentionDays") } }
     @Published var clearBufferAtEndOfDay: Bool { didSet { d.set(clearBufferAtEndOfDay, forKey: "clearBufferAtEndOfDay") } }
+    @Published var scanQRInImages: Bool { didSet { d.set(scanQRInImages, forKey: "scanQRInImages") } }
 
     // MARK: Notch
     @Published var recallMinutes: Int { didSet { d.set(recallMinutes, forKey: "recallMinutes") } }
@@ -19,6 +20,12 @@ final class Settings: ObservableObject {
     @Published var toolShortcuts: [String: Shortcut] {
         didSet { d.set(try? JSONEncoder().encode(toolShortcuts), forKey: "toolShortcuts") }
     }
+    @Published var reverseMouseScroll: Bool { didSet { d.set(reverseMouseScroll, forKey: "reverseMouseScroll") } }
+
+    // MARK: Terminal (`cape done`)
+    @Published var shellAuto: Bool { didSet { d.set(shellAuto, forKey: "shellAuto") } }
+    @Published var shellAutoSeconds: Int { didSet { d.set(shellAutoSeconds, forKey: "shellAutoSeconds") } }
+    @Published var shellSound: Bool { didSet { d.set(shellSound, forKey: "shellSound") } }
 
     // MARK: Updates
     @Published var autoCheckUpdates: Bool { didSet { d.set(autoCheckUpdates, forKey: "autoCheckUpdates") } }
@@ -61,6 +68,8 @@ final class Settings: ObservableObject {
     @Published var claudeSoundName: String { didSet { d.set(claudeSoundName, forKey: "claudeSoundName") } }
     @Published var claudeSoundDuringDND: Bool { didSet { d.set(claudeSoundDuringDND, forKey: "claudeSoundDuringDND") } }
     @Published var claudeSoundMuteWhenFront: Bool { didSet { d.set(claudeSoundMuteWhenFront, forKey: "claudeSoundMuteWhenFront") } }
+    @Published var claudeApprovals: Bool { didSet { d.set(claudeApprovals, forKey: "claudeApprovals") } }
+    @Published var claudeApprovalTimeout: Int { didSet { d.set(claudeApprovalTimeout, forKey: "claudeApprovalTimeout") } }
 
     private let d = UserDefaults.standard
 
@@ -69,12 +78,17 @@ final class Settings: ObservableObject {
             ?? AppModules.supportDirectory.appendingPathComponent("localBuffer").path
         bufferRetentionDays = d.object(forKey: "bufferRetentionDays") as? Int ?? 7
         clearBufferAtEndOfDay = d.object(forKey: "clearBufferAtEndOfDay") as? Bool ?? false
+        scanQRInImages = d.object(forKey: "scanQRInImages") as? Bool ?? true
         recallMinutes = d.object(forKey: "recallMinutes") as? Int ?? 30
         defaultModuleRaw = d.string(forKey: "defaultModuleRaw") ?? Module.tasks.rawValue
         openMediaOnHover = d.object(forKey: "openMediaOnHover") as? Bool ?? true
         showCharging = d.object(forKey: "showCharging") as? Bool ?? true
         toolShortcuts = d.data(forKey: "toolShortcuts")
             .flatMap { try? JSONDecoder().decode([String: Shortcut].self, from: $0) } ?? [:]
+        reverseMouseScroll = d.object(forKey: "reverseMouseScroll") as? Bool ?? false
+        shellAuto = d.object(forKey: "shellAuto") as? Bool ?? false
+        shellAutoSeconds = d.object(forKey: "shellAutoSeconds") as? Int ?? 30
+        shellSound = d.object(forKey: "shellSound") as? Bool ?? true
         autoCheckUpdates = d.object(forKey: "autoCheckUpdates") as? Bool ?? true
         reminderSound = d.object(forKey: "reminderSound") as? Bool ?? true
         reminderSoundName = d.string(forKey: "reminderSoundName") ?? "Ping"
@@ -108,6 +122,8 @@ final class Settings: ObservableObject {
         claudeSoundName = d.string(forKey: "claudeSoundName") ?? "Glass"
         claudeSoundDuringDND = d.object(forKey: "claudeSoundDuringDND") as? Bool ?? true
         claudeSoundMuteWhenFront = d.object(forKey: "claudeSoundMuteWhenFront") as? Bool ?? true
+        claudeApprovals = d.object(forKey: "claudeApprovals") as? Bool ?? true
+        claudeApprovalTimeout = d.object(forKey: "claudeApprovalTimeout") as? Int ?? 60
         launchAtLogin = (SMAppService.mainApp.status == .enabled)
     }
 

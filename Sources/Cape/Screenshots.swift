@@ -64,7 +64,9 @@ enum Screenshots {
             ("Notes", "/System/Applications/Notes.app", 1500),
             ("Music", "/System/Applications/Music.app", 900),
             ("Terminal", "/System/Applications/Utilities/Terminal.app", 720),
+            ("Messages", "/System/Applications/Messages.app", 660),
             ("Mail", "/System/Applications/Mail.app", 480),
+            ("Books", "/System/Applications/Books.app", 300),
         ]
         let snapshot: [String: Any] = [
             "day": todayFolder,
@@ -105,9 +107,74 @@ enum Screenshots {
 
     private static var window: NSWindow?
 
+    /// Demo Claude sessions and dev servers — the real ones are never read.
+    private static func seedDemoLive(_ modules: AppModules) {
+        let now = Date()
+        modules.ports.showDemo([
+            .init(port: 3000, pid: 48211, name: "node", project: "web", started: now.addingTimeInterval(-8100),
+                  exposed: false, isDev: true),
+            .init(port: 5173, pid: 48377, name: "node", project: "docs", started: now.addingTimeInterval(-2460),
+                  exposed: false, isDev: true),
+            .init(port: 8000, pid: 50112, name: "Python", project: "api", started: now.addingTimeInterval(-640),
+                  exposed: true, isDev: true),
+        ])
+        modules.settings.trackClaude = true
+        modules.claude.showDemo([
+            ClaudeSession(id: "demo-api", project: "api", status: .permission, since: now.addingTimeInterval(-20),
+                          lastEvent: now, prompt: "add a migration for the orders table", app: nil,
+                          title: "Orders migration"),
+            ClaudeSession(id: "demo-cape", project: "cape", status: .working, since: now.addingTimeInterval(-134),
+                          lastEvent: now, prompt: "make the sessions list drop from the notch", app: nil,
+                          title: "Sessions in the notch"),
+            ClaudeSession(id: "demo-blog", project: "blog", status: .done, since: now.addingTimeInterval(-360),
+                          lastEvent: now, prompt: "fix the RSS feed dates", app: nil, title: "RSS feed dates"),
+        ], [
+            ClaudePermission(id: "demo-request", sessionID: "demo-api", tool: "Bash",
+                             detail: "npm run db:migrate", expires: now.addingTimeInterval(52)),
+        ])
+    }
+
+    /// The collapsed brow with the Claude sessions list dropped down from it.
+    private static func captureClaudePeek(_ modules: AppModules, to out: URL, then done: @escaping () -> Void) {
+        let state = NotchState(settings: modules.settings)
+        state.claudePeek = true
+        let metrics = NotchMetrics.current()
+        let peekH = ClaudePeekPanel.height(sessions: modules.claude.sessions, permissions: modules.claude.permissions)
+        let size = NSSize(width: metrics.notchWidth + 2 * NotchRootView.islandWidth + 60,
+                          height: metrics.notchHeight + NotchRootView.topOvershoot + peekH + 24)
+        let root = NotchRootView(state: state, pomodoro: modules.pomodoro, media: modules.media,
+                                 claude: modules.claude, settings: modules.settings, todo: modules.todo,
+                                 modules: modules, metrics: metrics)
+            .frame(width: size.width, height: size.height)
+            .environment(\.colorScheme, .dark)
+        let host = NSHostingView(rootView: root)
+        host.frame = NSRect(origin: .zero, size: size)
+        let w = NSWindow(contentRect: host.frame, styleMask: .borderless, backing: .buffered, defer: false)
+        w.isOpaque = false
+        w.backgroundColor = .clear
+        w.contentView = host
+        w.setFrameOrigin(NSPoint(x: -20_000, y: -21_000))
+        w.orderFrontRegardless()
+        peekWindow = w
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(size.width * 2),
+                                       pixelsHigh: Int(size.height * 2), bitsPerSample: 8,
+                                       samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                       colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+            rep.size = size
+            host.cacheDisplay(in: host.bounds, to: rep)
+            let url = out.appendingPathComponent("claude.png")
+            try? rep.representation(using: .png, properties: [:])?.write(to: url)
+            print("wrote \(url.path)")
+            done()
+        }
+    }
+    private static var peekWindow: NSWindow?
+
     /// Render each tab (and the Tools page) of the expanded panel to a PNG, then quit.
     static func capture(_ modules: AppModules) {
         guard let out = outputDir else { return }
+        seedDemoLive(modules)
         try? FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
         let state = NotchState(settings: modules.settings)
         let metrics = NotchMetrics.current()
@@ -140,9 +207,13 @@ enum Screenshots {
             ("buffer", { state.selectModule(.buffer) }),
             ("screenTime", { state.selectModule(.screenTime) }),
             ("tools", { state.showingTools = true }),
+            ("ports", { state.showingPorts = true }),
         ]
         func shoot(_ i: Int) {
-            guard i < shots.count else { NSApp.terminate(nil); return }
+            guard i < shots.count else {
+                captureClaudePeek(modules, to: out) { NSApp.terminate(nil) }
+                return
+            }
             shots[i].1()
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(size.width * 2),

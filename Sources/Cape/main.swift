@@ -8,6 +8,13 @@ if CommandLine.arguments.dropFirst().first == "statusline" {
     exit(0)
 }
 
+// Hidden `cape permission` subcommand: Claude Code's PermissionRequest hook —
+// hands the request to the running Cape and waits for Allow / Deny.
+if CommandLine.arguments.dropFirst().first == "permission" {
+    PermissionHook.run()
+    exit(0)
+}
+
 // Dev tool: README screenshots from demo data (see Screenshots.swift). Refuses
 // to run against the real data folder.
 if Screenshots.outputDir != nil {

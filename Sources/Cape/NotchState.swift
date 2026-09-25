@@ -22,6 +22,12 @@ final class NotchState: ObservableObject {
     @Published var pomodoroControls = false
     /// The Tools page is showing instead of a module (the grid button in the rail).
     @Published var showingTools = false
+    /// …and on it, the Ports list.
+    @Published var showingPorts = false
+    /// The Claude sessions list is dropped down from the Claude island (hover).
+    @Published var claudePeek = false
+    /// The music island was clicked (play / pause) — don't open Media from that hover.
+    var mediaIslandClicked = false
 
     /// Keep the notch open (ignoring the cursor) until this moment — used after
     /// a grabber tap so shrinking doesn't instantly collapse the panel.
@@ -63,6 +69,7 @@ final class NotchState: ObservableObject {
             currentModule = settings.enabledModules.first ?? .tasks
         }
         showingTools = false
+        showingPorts = false
         touch()
     }
 
@@ -102,6 +109,27 @@ final class NotchState: ObservableObject {
     /// Eyedropper result: a swatch of the color and its hex (already copied).
     func flashColor(_ hex: String, _ color: Color) {
         show(NotchAlert(icon: "circle.fill", text: hex, color: color), duration: 2.6)
+    }
+
+    /// QR codes found in a copied image — the first one's host (+ how many more);
+    /// each code is already its own buffer entry.
+    func flashQR(_ payloads: [String]) {
+        guard let first = payloads.first else { return }
+        let more = payloads.count > 1 ? " +\(payloads.count - 1)" : ""
+        show(NotchAlert(icon: "qrcode", text: QRScanner.label(first) + more, color: .coral), duration: 2.8)
+    }
+
+    /// A terminal command finished (`cape done` / a long command): ✓ or ✗,
+    /// the command and how long it took.
+    func flashDone(ok: Bool, command: String, seconds: Int) {
+        let name = command.count > 26 ? String(command.prefix(25)) + "…" : command
+        let time = seconds < 60 ? "\(seconds)s" : seconds < 3600 ? "\(seconds / 60)m \(seconds % 60)s"
+            : "\(seconds / 3600)h \(seconds % 3600 / 60)m"
+        let text = [name, seconds > 0 ? time : ""].filter { !$0.isEmpty }.joined(separator: " · ")
+        show(NotchAlert(icon: ok ? "checkmark.circle.fill" : "xmark.circle.fill",
+                        text: text.isEmpty ? (ok ? "Done" : "Failed") : text,
+                        color: ok ? Color(red: 0.3, green: 0.85, blue: 0.45) : Color(red: 1, green: 0.42, blue: 0.42)),
+             duration: 4)
     }
 
     /// Shown when a Pomodoro phase changes (rest starts / next focus starts).

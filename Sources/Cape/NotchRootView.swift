@@ -22,11 +22,15 @@ struct NotchRootView: View {
 
     static let timerPillWidth: CGFloat = 70
     static let pomodoroControlsWidth: CGFloat = 94   // inline pause / next / cancel strip
-    static let mediaIslandWidth: CGFloat = 40        // equalizer / pause glyph, left of the camera
+    /// One width for the small side islands — music (left), the copy flash
+    /// (left) and Claude (right) — so the brow grows by the same amount on each side.
+    static let islandWidth: CGFloat = 40
+    static let mediaIslandWidth = islandWidth        // equalizer / pause glyph, left of the camera
+    static let claudeIslandWidth = islandWidth       // Claude's dot, right of the camera
     private let timerPillW = NotchRootView.timerPillWidth
     private let buttonsW = NotchRootView.pomodoroControlsWidth
     private let eqW = NotchRootView.mediaIslandWidth
-    private let claudeW: CGFloat = 20   // small coral island; the pulsing dot sits centered
+    private let claudeW = NotchRootView.claudeIslandWidth   // the pulsing dot sits centered
     // The window is shifted up by this much (see NotchController); the island is
     // grown upward by the same amount so black covers the very top rows with no
     // thin gap, while everything below stays put.
@@ -45,9 +49,22 @@ struct NotchRootView: View {
         return timerPillW + (state.pomodoroControls ? buttonsW : 0)
     }
 
-    /// Coral "Claude is thinking" island, shown while ≥1 session is working.
-    private var showClaude: Bool { !state.expanded && settings.trackClaude && claude.anyWorking }
+    /// Claude island: coral while ≥1 session is working, amber when one waits for you.
+    private var showClaude: Bool {
+        !state.expanded && settings.trackClaude && (claude.anyWorking || claude.needsYou)
+    }
     private var claudeExt: CGFloat { showClaude ? claudeW : 0 }
+
+    /// The sessions list dropped down from the Claude island (on hover).
+    private var showPeek: Bool { showClaude && state.claudePeek && !claude.sessions.isEmpty }
+    private var peekContentH: CGFloat {
+        ClaudePeekPanel.height(sessions: claude.sessions, permissions: claude.permissions)
+    }
+    /// From the brow's left end (the left island, or the camera cutout) to the
+    /// Claude island's right edge — never wider; long names get an ellipsis.
+    private var peekW: CGFloat { leftExt + notchW + claudeExt }
+    /// Horizontal center of the peek, relative to the camera.
+    private var peekShift: CGFloat { notchW / 2 + claudeExt - peekW / 2 }
 
     /// Task reminder that came due — outermost on the right until looked at.
     private var showReminder: Bool { !state.expanded && !todo.ringing.isEmpty }
@@ -67,12 +84,19 @@ struct NotchRootView: View {
     /// Left extension shows either a transient alert or a music equalizer.
     private var leftExt: CGFloat {
         guard !state.expanded else { return 0 }
-        if let alert = state.alert {
-            if alert.battery != nil { return 96 }
-            return alert.text == nil ? 46 : 50 + CGFloat(alert.text?.count ?? 0) * 7.5
-        }
+        if let alert = state.alert { return Self.alertWidth(alert) }
         if playing || paused { return eqW }   // same width so ⏯ doesn't shift the notch
+        // With the Claude list open and nothing on the left, an empty island
+        // mirrors Claude's so the brow and the list stay centered on the camera.
+        if showPeek { return Self.islandWidth }
         return 0
+    }
+
+    /// Width of a left-side alert: the charging badge, an icon-only flash (one
+    /// island wide, like the music one), or icon + text.
+    static func alertWidth(_ alert: NotchAlert) -> CGFloat {
+        if alert.battery != nil { return 96 }
+        return alert.text == nil ? islandWidth : 50 + CGFloat(alert.text?.count ?? 0) * 7.5
     }
 
     private var islandW: CGFloat {
@@ -102,6 +126,21 @@ struct NotchRootView: View {
                 .shadow(color: .black.opacity(state.expanded ? 0.55 : 0), radius: 16, y: 8)
                 .frame(width: islandW, height: islandH)
                 .offset(x: centerShift)
+            // The Claude sessions list grows down out of the brow (hidden under it otherwise).
+            UnevenRoundedRectangle(cornerRadii: .init(bottomLeading: showPeek ? 18 : radius,
+                                                      bottomTrailing: showPeek ? 18 : radius),
+                                   style: .continuous)
+                .fill(Color.black)
+                .shadow(color: .black.opacity(showPeek ? 0.5 : 0), radius: 12, y: 6)
+                .frame(width: peekW, height: islandH + (showPeek ? peekContentH : 0))
+                .offset(x: peekShift)
+                .opacity(state.expanded ? 0 : 1)
+            if showPeek {
+                ClaudePeekPanel(claude: claude)
+                    .frame(width: peekW, height: peekContentH)
+                    .offset(x: peekShift, y: islandH)
+                    .transition(Self.panelSwap)
+            }
             // The content is a separate layer laid out in its *final* place, so it
             // never rides along with that sideways travel.
             content
@@ -113,6 +152,8 @@ struct NotchRootView: View {
         .animation(.spring(response: 0.3, dampingFraction: 0.78), value: playing)
         .animation(.spring(response: 0.3, dampingFraction: 0.78), value: paused)
         .animation(.spring(response: 0.3, dampingFraction: 0.78), value: showClaude)
+        .animation(.spring(response: 0.28, dampingFraction: 0.84), value: showPeek)
+        .animation(.spring(response: 0.28, dampingFraction: 0.84), value: peekContentH)
         .animation(.spring(response: 0.34, dampingFraction: 0.7), value: reminderText)
         .animation(.spring(response: 0.34, dampingFraction: 0.84), value: state.tall)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -192,6 +233,14 @@ struct NotchRootView: View {
                 }
             }
             .frame(width: leftExt)
+            .frame(maxHeight: .infinity)
+            .contentShape(Rectangle())
+            // Click the music island: ⏸ → play, equalizer → pause.
+            .onTapGesture {
+                guard state.alert == nil, playing || paused else { return }
+                state.mediaIslandClicked = true
+                media.playPause()
+            }
 
             // Center — camera area, drawn empty.
             Color.clear.frame(width: notchW)
@@ -199,7 +248,7 @@ struct NotchRootView: View {
             // Claude island (coral) — inner to the timer, shown while a session thinks.
             ZStack {
                 if showClaude {
-                    ClaudeBlob()
+                    ClaudeBlob(attention: claude.needsYou)
                         .frame(width: 11, height: 11)
                         .transition(.scale.combined(with: .opacity))
                 }
@@ -374,16 +423,28 @@ struct RingingBell: View {
     }
 }
 
-/// Small pulsing coral "blob" shown while a Claude session is thinking.
+/// Small pulsing coral "blob" shown while a Claude session is thinking; amber
+/// and blinking (no pulse) when a session waits for you.
 struct ClaudeBlob: View {
+    var attention = false
+    static let amber = Color(red: 1.0, green: 0.74, blue: 0.24)
+
     var body: some View {
         TimelineView(.animation) { timeline in
             let t = timeline.date.timeIntervalSinceReferenceDate
-            let p = 0.5 + 0.5 * sin(t * 3.0)   // 0...1
-            Circle()
-                .fill(Color(red: 0.980, green: 0.514, blue: 0.302))
-                .scaleEffect(0.7 + 0.3 * p)
-                .opacity(0.6 + 0.4 * p)
+            if attention {
+                let on = t.truncatingRemainder(dividingBy: 1.2) < 0.8
+                Circle()
+                    .fill(Self.amber)
+                    .opacity(on ? 1 : 0.35)
+                    .shadow(color: Self.amber.opacity(on ? 0.7 : 0), radius: 3)
+            } else {
+                let p = 0.5 + 0.5 * sin(t * 3.0)   // 0...1
+                Circle()
+                    .fill(Color.coral)
+                    .scaleEffect(0.7 + 0.3 * p)
+                    .opacity(0.6 + 0.4 * p)
+            }
         }
     }
 }

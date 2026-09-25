@@ -6,6 +6,22 @@ extension Color {
     static let coral = Color(red: 0.980, green: 0.514, blue: 0.302)
 }
 
+/// A small coral on/off switch for the dark notch (the system switch looks
+/// washed out there).
+struct CoralSwitch: View {
+    let isOn: Bool
+
+    var body: some View {
+        Capsule()
+            .fill(isOn ? Color.coral : .white.opacity(0.18))
+            .frame(width: 26, height: 15)
+            .overlay(alignment: isOn ? .trailing : .leading) {
+                Circle().fill(.white).padding(2)
+            }
+            .animation(.easeOut(duration: 0.15), value: isOn)
+    }
+}
+
 /// System sounds that `NSSound(named:)` can actually play, gathered from the
 /// standard Sounds directories. Note: macOS Sequoia's redesigned alert sounds
 /// (Boop, Breeze, Funky, …) live in a private system store and are not reachable

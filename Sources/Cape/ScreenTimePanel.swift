@@ -9,6 +9,7 @@ struct ScreenTimePanel: View {
     @State private var earliest = 0
     @State private var weekTotals: [Int: Int] = [:]  // offset -> total, for the shown week
     @State private var showChart = false             // week chart hidden by default
+    @State private var filter: AppCategory?          // tap a category to list only its apps
 
     private var stats: DayStats {
         offset == 0 ? usage.today : (cached ?? .empty(dateFor(offset)))
@@ -19,10 +20,15 @@ struct ScreenTimePanel: View {
             dateHeader
             if showChart { weekChart }
 
-            HStack {
+            HStack(spacing: 16) {
                 stat(title: "Total", value: formatDuration(stats.total))
-                Spacer()
                 stat(title: "Switches", value: "\(stats.switches)")
+                Spacer(minLength: 8)
+                if !breakdown.isEmpty {
+                    categoryLegend
+                    CategoryDonut(slices: breakdown, highlighted: filter)
+                        .frame(width: 38, height: 38)
+                }
             }
 
             if stats.apps.isEmpty {
@@ -33,7 +39,7 @@ struct ScreenTimePanel: View {
             } else {
                 ScrollView {
                     VStack(spacing: 7) {
-                        ForEach(stats.apps.prefix(settings.screenTimeAppCount)) { row($0) }
+                        ForEach(shownApps.prefix(settings.screenTimeAppCount)) { row($0) }
                     }
                 }
             }
@@ -45,6 +51,7 @@ struct ScreenTimePanel: View {
             loadWeek()
         }
         .onChange(of: offset) { newOffset in
+            filter = nil
             cached = newOffset == 0 ? nil : usage.loadDay(offset: newOffset)
             earliest = usage.earliestOffset()
             loadWeek()
@@ -154,6 +161,51 @@ struct ScreenTimePanel: View {
         Calendar.current.date(byAdding: .day, value: o, to: Date()) ?? Date()
     }
 
+    // MARK: - Categories
+
+    /// Time per category for the shown day, largest first (empty ones left out).
+    private var breakdown: [(category: AppCategory, seconds: Int)] {
+        var sums: [AppCategory: Int] = [:]
+        for app in stats.apps { sums[AppCategory.of(path: app.iconPath), default: 0] += app.seconds }
+        return AppCategory.allCases.compactMap { c in sums[c].flatMap { $0 > 0 ? (c, $0) : nil } }
+            .sorted { $0.seconds > $1.seconds }
+    }
+
+    private var shownApps: [AppUsage] {
+        guard let filter else { return stats.apps }
+        return stats.apps.filter { AppCategory.of(path: $0.iconPath) == filter }
+    }
+
+    /// "● Work 52%" per category, two columns; a tap filters the app list.
+    private var categoryLegend: some View {
+        let total = max(1, breakdown.reduce(0) { $0 + $1.seconds })
+        return LazyVGrid(columns: [GridItem(.fixed(112), spacing: 8, alignment: .leading),
+                                   GridItem(.fixed(112), spacing: 8, alignment: .leading)],
+                         alignment: .leading, spacing: 3) {
+            ForEach(breakdown, id: \.category) { slice in
+                let share = Double(slice.seconds) / Double(total)
+                let dimmed = filter != nil && filter != slice.category
+                Button { filter = filter == slice.category ? nil : slice.category } label: {
+                    HStack(spacing: 5) {
+                        Circle().fill(slice.category.color).frame(width: 6, height: 6)
+                        Text(slice.category.name)
+                            .font(.system(size: 10, weight: filter == slice.category ? .semibold : .regular))
+                            .foregroundStyle(.white.opacity(0.8))
+                            .lineLimit(1)
+                        Text(share < 0.01 ? "<1%" : "\(Int((share * 100).rounded()))%")
+                            .font(.system(size: 10, weight: .semibold)).monospacedDigit()
+                            .foregroundStyle(.white.opacity(0.5))
+                    }
+                    .opacity(dimmed ? 0.35 : 1)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(filter == slice.category ? "Show all apps" : "Show only \(slice.category.name) apps")
+            }
+        }
+        .fixedSize()
+    }
+
     // MARK: - Rows
 
     private func stat(title: String, value: String) -> some View {
@@ -186,11 +238,43 @@ struct ScreenTimePanel: View {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     Capsule().fill(Color.white.opacity(0.1))
-                    Capsule().fill(Color(red: 0.4, green: 0.7, blue: 1.0))
+                    Capsule().fill(AppCategory.of(path: app.iconPath).color)   // its category's color
                         .frame(width: max(3, geo.size.width * fraction))
                 }
             }
             .frame(height: 5)
+        }
+    }
+}
+
+/// A small ring split by category share; the highlighted slice stays bright.
+private struct CategoryDonut: View {
+    let slices: [(category: AppCategory, seconds: Int)]
+    let highlighted: AppCategory?
+
+    var body: some View {
+        let total = Double(max(1, slices.reduce(0) { $0 + $1.seconds }))
+        // Tiny gaps between slices (none when there's only one).
+        let gap = slices.count > 1 ? 0.012 : 0
+        ZStack {
+            ForEach(Array(segments(total).enumerated()), id: \.offset) { _, seg in
+                Circle()
+                    .trim(from: seg.from, to: max(seg.from, seg.to - gap))
+                    .stroke(seg.category.color, style: StrokeStyle(lineWidth: 7, lineCap: .butt))
+                    .opacity(highlighted == nil || highlighted == seg.category ? 1 : 0.25)
+            }
+        }
+        .rotationEffect(.degrees(-90))
+        .padding(3.5)
+        .animation(.easeOut(duration: 0.2), value: highlighted)
+    }
+
+    private func segments(_ total: Double) -> [(category: AppCategory, from: Double, to: Double)] {
+        var start = 0.0
+        return slices.map { slice in
+            let end = start + Double(slice.seconds) / total
+            defer { start = end }
+            return (slice.category, start, end)
         }
     }
 }

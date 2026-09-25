@@ -13,9 +13,12 @@ final class AppModules {
     let voice: VoiceDictation
     let keyboardCleaner = KeyboardCleaner()
     let power = PowerMonitor()
+    let ports = PortsMonitor()
     let updater: Updater
+    let scrollReverser: ScrollReverser
+    let shell: ShellIntegration
     lazy var settingsWindow = SettingsWindowController(settings: settings, buffer: buffer, claude: claude,
-                                                       voice: voice, updater: updater)
+                                                       voice: voice, updater: updater, shell: shell)
 
     init() {
         let settings = Settings()
@@ -26,9 +29,11 @@ final class AppModules {
         usage = AppUsageTracker(settings: settings)
         todo = TodoStore()
         media = MediaController(mediaKeys: Screenshots.outputDir == nil)
-        claude = ClaudeSessionsManager(settings: settings)
+        claude = ClaudeSessionsManager(settings: settings, live: Screenshots.outputDir == nil)
         voice = VoiceDictation(settings: settings, todo: todo)
         updater = Updater(settings: settings)
+        scrollReverser = ScrollReverser(settings: settings)
+        shell = ShellIntegration(settings: settings)
     }
 
     /// Shared support directory: ~/Library/Application Support/Cape

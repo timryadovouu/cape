@@ -206,21 +206,40 @@ final class MediaController: ObservableObject {
         if artworkCacheOrder.count > 20 { artworkCache[artworkCacheOrder.removeFirst()] = nil }
     }
 
-    /// cover / folder / front / album .jpg|.jpeg|.png next to the track (any case).
+    /// The album's cover image for a track: cover / folder / front / album
+    /// .jpg|.jpeg|.png (any case) in the track's folder, else the biggest image
+    /// there (catches "Album Name.jpg", or a "cover" typed with a Cyrillic "о").
+    /// A track inside "Disc 1" / "CD2" also looks in the album folder above it.
+    /// cmus names a track of a one-file album with a cue sheet
+    /// `cue:///path/Album.cue/3` — that resolves to the cue's folder.
     private static func folderCover(for file: String) -> NSImage? {
-        let dir = (file as NSString).deletingLastPathComponent
-        guard let names = try? FileManager.default.contentsOfDirectory(atPath: dir) else { return nil }
-        let bases = ["cover", "folder", "front", "album"]
-        let exts = ["jpg", "jpeg", "png"]
-        for base in bases {
-            if let name = names.first(where: { n in
-                let ns = n as NSString
-                return ns.deletingPathExtension.lowercased() == base && exts.contains(ns.pathExtension.lowercased())
-            }), let img = NSImage(contentsOfFile: (dir as NSString).appendingPathComponent(name)) {
-                return img
-            }
+        var path = file
+        if path.hasPrefix("cue://") {
+            path = (String(path.dropFirst(6)) as NSString).deletingLastPathComponent   // drop the track number
+        }
+        let dir = (path as NSString).deletingLastPathComponent
+        if let img = cover(in: dir) { return img }
+        let folder = (dir as NSString).lastPathComponent.lowercased()
+        if ["disc", "disk", "cd"].contains(where: { folder.hasPrefix($0) }) {
+            return cover(in: (dir as NSString).deletingLastPathComponent)
         }
         return nil
+    }
+
+    private static func cover(in dir: String) -> NSImage? {
+        guard let names = try? FileManager.default.contentsOfDirectory(atPath: dir) else { return nil }
+        let exts = ["jpg", "jpeg", "png"]
+        let images = names.filter { exts.contains(($0 as NSString).pathExtension.lowercased()) }
+        func load(_ name: String) -> NSImage? { NSImage(contentsOfFile: (dir as NSString).appendingPathComponent(name)) }
+        for base in ["cover", "folder", "front", "album"] {
+            if let name = images.first(where: { ($0 as NSString).deletingPathExtension.lowercased() == base }),
+               let img = load(name) { return img }
+        }
+        let size = { (name: String) -> Int in
+            ((try? FileManager.default.attributesOfItem(atPath: (dir as NSString).appendingPathComponent(name)))?[.size]
+                as? NSNumber)?.intValue ?? 0
+        }
+        return images.max { size($0) < size($1) }.flatMap(load)
     }
 
     /// Art embedded in the audio file's tags (ID3 / MP4), if any.

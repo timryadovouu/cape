@@ -28,6 +28,8 @@ final class BufferManager: ObservableObject {
 
     /// Fired on a new external copy — used for the "brow widens left" effect.
     var onNewItem: ((BufferItem) -> Void)?
+    /// Fired with the QR codes found in a copied image (each already saved).
+    var onQRCodes: (([String]) -> Void)?
 
     private let settings: Settings
     private var lastChangeCount: Int
@@ -171,15 +173,21 @@ final class BufferManager: ObservableObject {
                                       options: [.urlReadingFileURLsOnly: true]) as? [URL]
         let image = NSImage(pasteboard: pb)
         let text = pb.string(forType: .string)
+        let scanQR = settings.scanQRInImages
 
         io.async { [weak self] in
             guard let self else { return }
             var saved: BufferItem?
+            var codes: [String] = []
 
             if let urls = fileURLs, !urls.isEmpty {
                 for u in urls { saved = self.saveFile(from: u) ?? saved }
             } else if let image {
                 saved = self.saveImage(image)
+                if scanQR, let shot = saved {
+                    codes = QRScanner.codes(in: shot.url)
+                    self.saveCodes(codes, under: shot)
+                }
             } else if let text,
                       !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 if text == self.lastText { return }
@@ -191,6 +199,7 @@ final class BufferManager: ObservableObject {
             DispatchQueue.main.async {
                 self.reloadItems()
                 self.onNewItem?(item)
+                if !codes.isEmpty { self.onQRCodes?(codes) }
             }
         }
     }
@@ -233,6 +242,19 @@ final class BufferManager: ObservableObject {
         let dest = todayURL().appendingPathComponent(stampName(ext: "txt"))
         try? text.data(using: .utf8)?.write(to: dest)
         return item(for: dest)
+    }
+
+    /// One text entry per QR code, dated just before the image so they list
+    /// right under it, in the codes' order. The pasteboard keeps the image.
+    private func saveCodes(_ codes: [String], under image: BufferItem) {
+        for (i, code) in codes.enumerated() {
+            let dest = uniqueURL(in: image.url.deletingLastPathComponent(),
+                                 name: "\(image.url.deletingPathExtension().lastPathComponent)-qr.txt")
+            try? code.data(using: .utf8)?.write(to: dest)
+            try? FileManager.default.setAttributes(
+                [.modificationDate: image.date.addingTimeInterval(-0.001 * Double(i + 1))],
+                ofItemAtPath: dest.path)
+        }
     }
 
     private func stampName(ext: String) -> String {

@@ -6,9 +6,8 @@ struct TodoPanel: View {
     @ObservedObject var state: NotchState
     @State private var draft = ""
     @State private var showTrash = false
-    /// Task whose reminder is being set — its editor replaces the add field.
+    /// Task open in the card (text + reminder), floating over the list.
     @State private var editingID: UUID?
-    @State private var pickDate = Date()
 
     var body: some View {
         VStack(spacing: 8) {
@@ -17,15 +16,22 @@ struct TodoPanel: View {
             if showTrash {
                 trashList
             } else {
-                if let id = editingID, let item = store.items.first(where: { $0.id == id }) {
-                    reminderEditor(item)
-                } else {
-                    addField
-                }
+                addField
                 activeList
             }
 
             GrabberBar(state: state)
+        }
+        .overlay {
+            if let id = editingID, let item = store.items.first(where: { $0.id == id }) {
+                TaskCard(item: item, onSave: { title, due in
+                    store.rename(item, title)
+                    if due != item.due { store.setDue(item, due) }
+                    closeEditor()
+                }, onClose: closeEditor)
+                .id(item.id)
+                .transition(.opacity.combined(with: .scale(scale: 0.97)))
+            }
         }
     }
 
@@ -70,89 +76,14 @@ struct TodoPanel: View {
         draft = ""
     }
 
-    // MARK: - Reminder editor
+    // MARK: - Task card
 
     private func openEditor(_ item: TodoItem) {
-        // Start from the current time, else the next full hour.
-        let cal = Calendar.current
-        let nextHour = cal.date(bySetting: .minute, value: 0, of: Date().addingTimeInterval(3600)) ?? Date()
-        pickDate = item.due ?? nextHour
-        editingID = item.id
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { editingID = item.id }
     }
 
-    private func setDue(_ item: TodoItem, _ date: Date?) {
-        store.setDue(item, date)
-        editingID = nil
-    }
-
-    /// Quick picks + a 24-hour date & time field, in place of the add field.
-    private func reminderEditor(_ item: TodoItem) -> some View {
-        let cal = Calendar.current
-        let now = Date()
-        let evening = cal.date(bySettingHour: 18, minute: 0, second: 0, of: now) ?? now
-        let tomorrow9 = cal.date(bySettingHour: 9, minute: 0, second: 0,
-                                 of: cal.date(byAdding: .day, value: 1, to: now) ?? now) ?? now
-        return VStack(alignment: .leading, spacing: 7) {
-            HStack(spacing: 6) {
-                Image(systemName: "bell.fill").font(.system(size: 10)).foregroundStyle(Color.coral)
-                Text(item.title).font(.system(size: 12, weight: .semibold)).lineLimit(1)
-                Spacer()
-                Button { editingID = nil } label: {
-                    Image(systemName: "xmark").font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.5))
-                }
-                .buttonStyle(.plain)
-                .help("Cancel")
-            }
-            HStack(spacing: 6) {
-                quickPick("+1 h") { setDue(item, now.addingTimeInterval(3600)) }
-                if evening > now { quickPick("18:00") { setDue(item, evening) } }
-                quickPick("Tmrw 9:00") { setDue(item, tomorrow9) }
-                Spacer(minLength: 4)
-                DatePicker("", selection: $pickDate, displayedComponents: [.date, .hourAndMinute])
-                    .labelsHidden()
-                    .datePickerStyle(.stepperField)
-                    .environment(\.locale, Locale(identifier: "en_GB"))   // 24-hour clock
-                    .environment(\.colorScheme, .dark)
-                    .fixedSize()
-                Button { setDue(item, pickDate) } label: {
-                    Text("Set")
-                        .font(.system(size: 11, weight: .semibold))
-                        .padding(.horizontal, 10).padding(.vertical, 4)
-                        .background(Color.coral.opacity(pickDate > now ? 0.9 : 0.3))
-                        .clipShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .disabled(pickDate <= now)
-                .help(pickDate > now ? "Remind at this time" : "Pick a time in the future")
-                if item.due != nil {
-                    Button { setDue(item, nil) } label: {
-                        Image(systemName: "bell.slash")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(TaskRow.overdueColor)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Remove the reminder")
-                }
-            }
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .background(Color.coral.opacity(0.10))
-        .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous)
-            .strokeBorder(Color.coral.opacity(0.35), lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
-    }
-
-    private func quickPick(_ title: String, _ action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 11, weight: .medium))
-                .padding(.horizontal, 8).padding(.vertical, 4)
-                .background(Color.white.opacity(0.12))
-                .clipShape(Capsule())
-        }
-        .buttonStyle(.plain)
+    private func closeEditor() {
+        withAnimation(.easeOut(duration: 0.15)) { editingID = nil }
     }
 
     private func copyTitle(_ text: String) {
@@ -297,13 +228,13 @@ private struct TaskRow: View {
             if let due = item.due {
                 Button(action: onReminder) { dueChip(due) }
                     .buttonStyle(.plain)
-                    .help("Change or remove the reminder")
+                    .help("Edit the task and its reminder")
             }
 
             // Always laid out (only shown on hover) so the row height never jumps.
             HStack(spacing: 6) {
                 rowButton(item.due == nil ? "bell" : "bell.fill",
-                          help: item.due == nil ? "Set a reminder" : "Change or remove the reminder",
+                          help: item.due == nil ? "Set a reminder" : "Edit the task and its reminder",
                           action: onReminder)
                 rowButton("doc.on.doc", help: "Copy", action: onCopy)
                 rowButton("trash", help: "Delete", danger: true, action: onDelete)
@@ -372,5 +303,187 @@ private struct TaskRow: View {
         }
         .buttonStyle(.plain)
         .help(help)
+    }
+}
+
+/// The task card: edit the text and set the reminder with quick picks, a
+/// calendar and a 24-hour time — floats over the task list inside the notch.
+/// Enter saves, Esc closes.
+private struct TaskCard: View {
+    let item: TodoItem
+    let onSave: (String, Date?) -> Void
+    let onClose: () -> Void
+
+    @State private var title: String
+    @State private var date: Date
+    @State private var remind: Bool
+
+    init(item: TodoItem, onSave: @escaping (String, Date?) -> Void, onClose: @escaping () -> Void) {
+        self.item = item
+        self.onSave = onSave
+        self.onClose = onClose
+        _title = State(initialValue: item.title)
+        // Start from the current time, else the next full hour.
+        let nextHour = Calendar.current.date(bySetting: .minute, value: 0,
+                                             of: Date().addingTimeInterval(3600)) ?? Date()
+        _date = State(initialValue: item.due ?? nextHour)
+        // Opened from the bell, so a new task starts with the reminder on.
+        _remind = State(initialValue: true)
+    }
+
+    private var cal: Calendar { Calendar.current }
+    private var canSave: Bool {
+        !title.trimmingCharacters(in: .whitespaces).isEmpty && (!remind || date > Date())
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            VStack(alignment: .leading, spacing: 9) {
+                HStack(spacing: 6) {
+                    Image(systemName: "checklist").font(.system(size: 10))
+                        .foregroundStyle(Color.coral)
+                    Text("Task").font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.6))
+                    Spacer()
+                    Button(action: onClose) {
+                        Image(systemName: "xmark").font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.5))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Close (Esc)")
+                }
+
+                TextField("Task", text: $title)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 12))
+                    .onSubmit { if canSave { save() } }
+                    .padding(.horizontal, 9).padding(.vertical, 6)
+                    .background(Color.white.opacity(0.08))
+                    .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+
+                Button { remind.toggle() } label: {
+                    HStack(spacing: 7) {
+                        CoralSwitch(isOn: remind)
+                        Text("Remind me").font(.system(size: 11, weight: .medium))
+                        Text(summary)
+                            .font(.system(size: 11, weight: .semibold)).monospacedDigit()
+                            .foregroundStyle(summaryColor)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                HStack(spacing: 5) {
+                    ForEach(quickPicks, id: \.0) { pick in
+                        chip(pick.0, selected: remind && abs(date.timeIntervalSince(pick.1)) < 30) {
+                            date = pick.1; remind = true
+                        }
+                    }
+                }
+
+                HStack(spacing: 8) {
+                    Text("Time").font(.system(size: 11)).foregroundStyle(.white.opacity(0.5))
+                    DatePicker("", selection: timeBinding, displayedComponents: .hourAndMinute)
+                        .labelsHidden()
+                        .datePickerStyle(.stepperField)
+                        .fixedSize()
+                    Spacer()
+                    Button(action: save) {
+                        Text("Save")
+                            .font(.system(size: 11, weight: .semibold))
+                            .padding(.horizontal, 14).padding(.vertical, 5)
+                            .background(Color.coral.opacity(canSave ? 0.9 : 0.3))
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!canSave)
+                    .help(canSave ? "Save (Enter)" : "Pick a time in the future")
+                }
+            }
+            .frame(maxWidth: .infinity)
+
+            DatePicker("", selection: dayBinding, in: cal.startOfDay(for: Date())...,
+                       displayedComponents: .date)
+                .labelsHidden()
+                .datePickerStyle(.graphical)
+                .fixedSize()
+                .opacity(remind ? 1 : 0.4)
+        }
+        .environment(\.locale, Locale(identifier: "en_GB"))   // 24-hour clock, weeks from Monday
+        .environment(\.colorScheme, .dark)
+        .padding(12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color(white: 0.09))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(Color.coral.opacity(0.35), lineWidth: 1))
+        )
+        .onExitCommand(perform: onClose)
+    }
+
+    private func save() {
+        guard canSave else { return }
+        onSave(title, remind ? date : nil)
+    }
+
+    // MARK: Date pieces
+
+    /// The calendar changes the day and keeps the time; the stepper the reverse.
+    private var dayBinding: Binding<Date> {
+        Binding(get: { date }, set: { day in
+            date = merge(day: day, time: date); remind = true
+        })
+    }
+    private var timeBinding: Binding<Date> {
+        Binding(get: { date }, set: { time in
+            date = merge(day: date, time: time); remind = true
+        })
+    }
+    private func merge(day: Date, time: Date) -> Date {
+        let t = cal.dateComponents([.hour, .minute], from: time)
+        return cal.date(bySettingHour: t.hour ?? 9, minute: t.minute ?? 0, second: 0, of: day) ?? day
+    }
+
+    private var quickPicks: [(String, Date)] {
+        let now = Date()
+        let start = cal.date(bySetting: .second, value: 0, of: now) ?? now
+        var picks: [(String, Date)] = [("In 1 h", start.addingTimeInterval(3600))]
+        if let evening = cal.date(bySettingHour: 18, minute: 0, second: 0, of: now), evening > now {
+            picks.append(("18:00", evening))
+        }
+        if let tmrw = cal.date(byAdding: .day, value: 1, to: now),
+           let nine = cal.date(bySettingHour: 9, minute: 0, second: 0, of: tmrw) {
+            picks.append(("Tmrw 9:00", nine))
+        }
+        // Next Monday morning (a week ahead when today is Monday).
+        if let monday = cal.nextDate(after: now, matching: DateComponents(hour: 9, minute: 0, weekday: 2),
+                                     matchingPolicy: .nextTime) {
+            picks.append(("Mon 9:00", monday))
+        }
+        return picks
+    }
+
+    private var summary: String {
+        guard remind else { return item.due == nil ? "" : "Off — removes it" }
+        let now = Date()
+        if date <= now { return "In the past" }
+        let label = TaskRow.dueLabel(date, now: now)
+        return cal.isDateInToday(date) ? "Today \(label)" : label
+    }
+    private var summaryColor: Color {
+        !remind ? .white.opacity(0.45) : date <= Date() ? TaskRow.overdueColor : .coral
+    }
+
+    private func chip(_ title: String, selected: Bool, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 11, weight: .medium))
+                .padding(.horizontal, 8).padding(.vertical, 4)
+                .foregroundStyle(selected ? Color.coral : .white)
+                .background(selected ? Color.coral.opacity(0.18) : Color.white.opacity(0.12))
+                .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
     }
 }

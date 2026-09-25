@@ -4,6 +4,58 @@ All notable changes to Cape are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] — 2026-09-25
+
+### Added
+- **Claude Code sessions in the notch** — hover the Claude island (right of the
+  camera) and a list of your sessions drops down from the brow: what each is
+  doing (working · waiting for you · asked a question · done), its title and
+  your last prompt. **Click one to jump into it** — in the Claude app, straight
+  into that session's conversation. Finished sessions leave the list once opened,
+  or after 15 minutes; slide left from the island along the brow to open the
+  full panel. The island is coral while Claude works and
+  turns **amber** when a session waits for you.
+- **Allow / Deny from the notch** — when Claude asks to run a tool, the request
+  shows up in that list (`Bash  npm run db:migrate`) with Allow and Deny.
+  Unanswered, it goes back to the terminal / app after a timeout you choose
+  (1 minute by default, *Settings › Claude*). Works in the terminal and in the
+  Claude app's Code tab.
+- **`cape done`** — add `; cape done` to any command (`npm run build; cape done`)
+  and the notch flashes ✓ or ✗ with the command and how long it took, with a
+  sound. Optionally, the same after **any command longer than N seconds** while
+  you're in another window (off by default, 30 s). One click installs it into
+  zsh — *Settings › Terminal*.
+- **Ports** (Tools) — the dev servers listening on this Mac: port, process,
+  project folder, uptime, reachable from the LAN or not. Open one in the browser
+  or stop it; *Show all* adds system services.
+- **QR codes in copied images** — copy a screenshot (⌃⇧⌘4) or an image with a QR
+  code and its link lands in the buffer as its own entry, right under the image.
+  No screen-recording permission. Toggle in Tools and *Settings › Buffer*.
+- **Reverse mouse wheel** (Tools) — flips a mouse wheel's scroll direction while
+  the trackpad keeps natural scrolling (what Scroll Reverser does).
+- **Screen Time by category** — a ring and a legend split the day into Work,
+  Browsing, Social, Entertainment, Learning and Other, sorted automatically;
+  click a category to list only its apps. App bars take the category's color.
+- **Task card** — the 🔔 on a task opens a card over the list: edit the text,
+  quick picks (in 1 h, 18:00, tomorrow 9:00, Monday 9:00), a calendar and a
+  24-hour time. Enter saves, Esc closes.
+- **Click the music island** to pause / play; rest on it a moment to open Media.
+
+### Changed
+- **Settings** has a sidebar of pages, like System Settings, in a resizable
+  window that remembers its size and the last page. The hint on the Tools page
+  opens *Settings › Tools* directly.
+- The music, copy and Claude islands share one width, so the brow grows evenly
+  on both sides — and the Claude island is easier to hover. With the Claude list
+  open and nothing on the left, an empty island mirrors it, so the list stays
+  centered on the camera.
+- The Claude island stays lit through long turns, and comes back after Cape
+  restarts mid-turn.
+
+### Fixed
+- **cmus covers** for albums ripped as one file with a cue sheet, for tracks in
+  `Disc 1` / `CD2` folders, and for covers with an unusual file name.
+
 ## [0.3.3] — 2026-09-24
 
 ### Changed
@@ -221,6 +273,7 @@ Initial public beta.
 - A standalone **Settings** window, Launch at login, and GitHub Actions CI +
   releases.
 
+[0.4.0]: https://github.com/timryadovouu/cape/releases/tag/v0.4.0
 [0.3.3]: https://github.com/timryadovouu/cape/releases/tag/v0.3.3
 [0.3.2]: https://github.com/timryadovouu/cape/releases/tag/v0.3.2
 [0.3.1]: https://github.com/timryadovouu/cape/releases/tag/v0.3.1

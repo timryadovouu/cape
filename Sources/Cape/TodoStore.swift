@@ -57,6 +57,15 @@ final class TodoStore: ObservableObject {
         commit()
     }
 
+    /// Edit a task's text (empty text keeps the old one).
+    func rename(_ item: TodoItem, _ title: String) {
+        let text = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty, let i = all.firstIndex(where: { $0.id == item.id }),
+              all[i].title != text else { return }
+        all[i].title = text
+        commit()
+    }
+
     /// The user has seen the ringing reminders (hovered them / opened Tasks).
     func dismissRinging() {
         guard !ringingIDs.isEmpty else { return }
