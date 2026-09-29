@@ -44,7 +44,7 @@ struct TodoPanel: View {
                     .foregroundStyle(.white.opacity(0.6))
             }
             .buttonStyle(.plain)
-            .help(showTrash ? "Back to tasks" : "Show trash")
+            .help(showTrash ? String(localized: "Back to tasks") : String(localized: "Show trash"))
         }
     }
 
@@ -140,11 +140,11 @@ struct TodoPanel: View {
         let cal = Calendar.current
         let dated = undone.filter { $0.due != nil }.sorted { $0.due! < $1.due! }
         let groups: [TaskSection] = [
-            TaskSection(title: "Overdue", alert: true, items: dated.filter { $0.due! <= now }),
-            TaskSection(title: "Today", items: dated.filter { $0.due! > now && cal.isDateInToday($0.due!) }),
-            TaskSection(title: "Upcoming", items: dated.filter { $0.due! > now && !cal.isDateInToday($0.due!) }),
-            TaskSection(title: "No date", items: undone.filter { $0.due == nil }),
-            TaskSection(title: "Done", items: done),
+            TaskSection(title: String(localized: "Overdue"), alert: true, items: dated.filter { $0.due! <= now }),
+            TaskSection(title: String(localized: "Today"), items: dated.filter { $0.due! > now && cal.isDateInToday($0.due!) }),
+            TaskSection(title: String(localized: "Upcoming"), items: dated.filter { $0.due! > now && !cal.isDateInToday($0.due!) }),
+            TaskSection(title: String(localized: "No date"), items: undone.filter { $0.due == nil }),
+            TaskSection(title: String(localized: "Done"), items: done),
         ]
         return groups.filter { !$0.items.isEmpty }
     }
@@ -207,7 +207,7 @@ private struct TaskRow: View {
     let onDelete: () -> Void
     @State private var hovering = false
 
-    static let overdueColor = Color(red: 1, green: 0.45, blue: 0.45)
+    static let overdueColor = Color.capeRed
 
     var body: some View {
         HStack(spacing: 9) {
@@ -234,10 +234,10 @@ private struct TaskRow: View {
             // Always laid out (only shown on hover) so the row height never jumps.
             HStack(spacing: 6) {
                 rowButton(item.due == nil ? "bell" : "bell.fill",
-                          help: item.due == nil ? "Set a reminder" : "Edit the task and its reminder",
+                          help: item.due == nil ? String(localized: "Set a reminder") : String(localized: "Edit the task and its reminder"),
                           action: onReminder)
-                rowButton("doc.on.doc", help: "Copy", action: onCopy)
-                rowButton("trash", help: "Delete", danger: true, action: onDelete)
+                rowButton("doc.on.doc", help: String(localized: "Copy"), action: onCopy)
+                rowButton("trash", help: String(localized: "Delete"), danger: true, action: onDelete)
             }
             .opacity(hovering ? 1 : 0)
             .allowsHitTesting(hovering)
@@ -273,7 +273,7 @@ private struct TaskRow: View {
         let cal = Calendar.current
         let time = timeFormatter.string(from: due)
         if cal.isDateInToday(due) { return time }
-        if cal.isDateInTomorrow(due) { return "Tmrw \(time)" }
+        if cal.isDateInTomorrow(due) { return String(localized: "Tmrw \(time)") }
         let days = cal.dateComponents([.day], from: cal.startOfDay(for: now),
                                       to: cal.startOfDay(for: due)).day ?? 99
         return (abs(days) < 7 ? weekdayFormatter : dateFormatter).string(from: due) + " \(time)"
@@ -283,10 +283,10 @@ private struct TaskRow: View {
         let f = DateFormatter(); f.dateFormat = "H:mm"; return f
     }()
     private static let weekdayFormatter: DateFormatter = {
-        let f = DateFormatter(); f.dateFormat = "EEE"; return f
+        let f = DateFormatter(); f.locale = AppLanguage.locale; f.dateFormat = "EEE"; return f
     }()
     private static let dateFormatter: DateFormatter = {
-        let f = DateFormatter(); f.dateFormat = "d MMM"; return f
+        let f = DateFormatter(); f.locale = AppLanguage.locale; f.dateFormat = "d MMM"; return f
     }()
 
     private func rowButton(_ icon: String, help: String, danger: Bool = false,
@@ -298,7 +298,7 @@ private struct TaskRow: View {
                 .foregroundStyle(danger ? Color(red: 1, green: 0.5, blue: 0.5) : .white.opacity(0.75))
                 .background(
                     RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .fill(danger ? Color.red.opacity(0.18) : Color.white.opacity(0.13))
+                        .fill(danger ? Color.capeRed.opacity(0.18) : Color.white.opacity(0.13))
                 )
         }
         .buttonStyle(.plain)
@@ -397,7 +397,7 @@ private struct TaskCard: View {
                     }
                     .buttonStyle(.plain)
                     .disabled(!canSave)
-                    .help(canSave ? "Save (Enter)" : "Pick a time in the future")
+                    .help(canSave ? String(localized: "Save (Enter)") : String(localized: "Pick a time in the future"))
                 }
             }
             .frame(maxWidth: .infinity)
@@ -409,7 +409,8 @@ private struct TaskCard: View {
                 .fixedSize()
                 .opacity(remind ? 1 : 0.4)
         }
-        .environment(\.locale, Locale(identifier: "en_GB"))   // 24-hour clock, weeks from Monday
+        // 24-hour clock and weeks from Monday either way; month names in the app's language.
+        .environment(\.locale, Locale(identifier: AppLanguage.running == "ru" ? "ru_RU" : "en_GB"))
         .environment(\.colorScheme, .dark)
         .padding(12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -448,28 +449,28 @@ private struct TaskCard: View {
     private var quickPicks: [(String, Date)] {
         let now = Date()
         let start = cal.date(bySetting: .second, value: 0, of: now) ?? now
-        var picks: [(String, Date)] = [("In 1 h", start.addingTimeInterval(3600))]
+        var picks: [(String, Date)] = [(String(localized: "In 1 h"), start.addingTimeInterval(3600))]
         if let evening = cal.date(bySettingHour: 18, minute: 0, second: 0, of: now), evening > now {
             picks.append(("18:00", evening))
         }
         if let tmrw = cal.date(byAdding: .day, value: 1, to: now),
            let nine = cal.date(bySettingHour: 9, minute: 0, second: 0, of: tmrw) {
-            picks.append(("Tmrw 9:00", nine))
+            picks.append((String(localized: "Tmrw 9:00"), nine))
         }
         // Next Monday morning (a week ahead when today is Monday).
         if let monday = cal.nextDate(after: now, matching: DateComponents(hour: 9, minute: 0, weekday: 2),
                                      matchingPolicy: .nextTime) {
-            picks.append(("Mon 9:00", monday))
+            picks.append((String(localized: "Mon 9:00"), monday))
         }
         return picks
     }
 
     private var summary: String {
-        guard remind else { return item.due == nil ? "" : "Off — removes it" }
+        guard remind else { return item.due == nil ? "" : String(localized: "Off — removes it") }
         let now = Date()
-        if date <= now { return "In the past" }
+        if date <= now { return String(localized: "In the past") }
         let label = TaskRow.dueLabel(date, now: now)
-        return cal.isDateInToday(date) ? "Today \(label)" : label
+        return cal.isDateInToday(date) ? String(localized: "Today \(label)") : label
     }
     private var summaryColor: Color {
         !remind ? .white.opacity(0.45) : date <= Date() ? TaskRow.overdueColor : .coral

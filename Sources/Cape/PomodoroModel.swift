@@ -6,9 +6,9 @@ enum PomodoroPhase {
 
     var title: String {
         switch self {
-        case .work: return "Focus"
-        case .shortBreak: return "Break"
-        case .longBreak: return "Long Break"
+        case .work: return String(localized: "Focus")
+        case .shortBreak: return String(localized: "Break")
+        case .longBreak: return String(localized: "Long Break")
         }
     }
 }

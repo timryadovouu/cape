@@ -18,6 +18,6 @@ struct GrabberBar: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help(state.tall ? "Shrink panel" : "Grow panel")
+        .help(state.tall ? String(localized: "Shrink panel") : String(localized: "Grow panel"))
     }
 }

@@ -16,11 +16,11 @@ enum Module: String, CaseIterable, Identifiable {
 
     var name: String {
         switch self {
-        case .media: return "Media"
-        case .timer: return "Timer"
-        case .tasks: return "Tasks"
-        case .buffer: return "Buffer"
-        case .screenTime: return "Screen Time"
+        case .media: return String(localized: "Media")
+        case .timer: return String(localized: "Timer")
+        case .tasks: return String(localized: "Tasks")
+        case .buffer: return String(localized: "Buffer")
+        case .screenTime: return String(localized: "Screen Time")
         }
     }
 }
@@ -36,6 +36,15 @@ struct ExpandedPanel: View {
     let notchWidth: CGFloat
     let topInset: CGFloat
 
+    /// During the tour, a tab is highlighted only on its own step (not on the
+    /// welcome / islands / setup pages).
+    private var tourShowsTab: Bool {
+        guard let index = state.tourStep else { return true }
+        let steps = Tour.steps(settings)
+        guard steps.indices.contains(index), case .module = steps[index] else { return false }
+        return true
+    }
+
     private var current: Module {
         settings.isEnabled(state.currentModule)
             ? state.currentModule
@@ -45,7 +54,28 @@ struct ExpandedPanel: View {
     var body: some View {
         VStack(spacing: 8) {
             headerMetrics.frame(height: topInset)
-            rail
+            // The tour shows the real rail (not clickable) and the real tab, with
+            // its explanation in a strip below; welcome / islands / setup have pages.
+            rail.allowsHitTesting(state.tourStep == nil)
+            if let index = state.tourStep {
+                let steps = Tour.steps(settings)
+                switch steps.indices.contains(index) ? steps[index] : .welcome {
+                case .module, .tools: modulePanel
+                case let step: TourPage(step: step, settings: settings, modules: modules)
+                }
+                TourCaption(state: state, settings: settings)
+            } else {
+                modulePanel
+            }
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 2)
+        .padding(.bottom, 14)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .foregroundStyle(.white)
+    }
+
+    private var modulePanel: some View {
             Group {
                 if state.showingTools {
                     ToolsPanel(settings: settings, state: state, modules: modules)
@@ -55,25 +85,18 @@ struct ExpandedPanel: View {
                     case .timer: PomodoroPanel(model: modules.pomodoro, claude: modules.claude)
                     case .tasks: TodoPanel(store: modules.todo, state: state)
                     case .buffer: BufferPanel(manager: modules.buffer, state: state, voice: modules.voice)
-                    case .screenTime: ScreenTimePanel(usage: modules.usage, state: state, settings: settings)
+                    case .screenTime: ScreenTimePanel(usage: modules.usage, energy: modules.energy, state: state, settings: settings)
                     }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .padding(.horizontal, 18)
-        .padding(.top, 2)
-        .padding(.bottom, 14)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .foregroundStyle(.white)
     }
 
     // MARK: - System metrics (in the black areas beside the camera)
 
     private var headerMetrics: some View {
         HStack(spacing: 0) {
-            metric("CPU", system.cpu, "\(Int(system.cpu * 100))%",
-                   Color(red: 1.0, green: 0.45, blue: 0.4))
+            metric("CPU", system.cpu, "\(Int(system.cpu * 100))%", .capeRed)
                 .frame(maxWidth: .infinity)
 
             Color.clear.frame(width: notchWidth)   // camera gap
@@ -119,8 +142,8 @@ struct ExpandedPanel: View {
             Rectangle().fill(Color.white.opacity(0.12)).frame(width: 1, height: 20)
             toolsButton
             iconButton("gearshape.fill",
-                       tint: Color(red: 0.980, green: 0.514, blue: 0.302), // #FA834D coral
-                       help: "Settings") {
+                       tint: .coral,
+                       help: String(localized: "Settings")) {
                 modules.settingsWindow.toggle()
             }
             .overlay(alignment: .topTrailing) {
@@ -138,7 +161,7 @@ struct ExpandedPanel: View {
                     .font(.system(size: 11, weight: .bold))
                     .frame(height: 32)
                     .padding(.horizontal, 12)
-                    .background(Color.red.opacity(0.85))
+                    .background(Color.capeRed)
                     .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
             }
             .buttonStyle(.plain)
@@ -168,7 +191,7 @@ struct ExpandedPanel: View {
     }
 
     private func tab(_ module: Module) -> some View {
-        let active = current == module && !state.showingTools
+        let active = current == module && !state.showingTools && tourShowsTab
         return Button { state.selectModule(module) } label: {
             Image(systemName: module.icon)
                 .font(.system(size: 13, weight: active ? .bold : .medium))

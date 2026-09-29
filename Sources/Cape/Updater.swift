@@ -78,7 +78,7 @@ final class Updater: ObservableObject {
                 await MainActor.run {
                     if Self.isNewer(release.version, than: self.currentVersion) {
                         guard release.zipURL != nil else {
-                            self.state = silent ? before : .failed("Cape \(release.version) has no Cape.zip to install — download it from GitHub.")
+                            self.state = silent ? before : .failed(String(localized: "Cape \(release.version) has no Cape.zip to install — download it from GitHub."))
                             return
                         }
                         self.state = .available(release)
@@ -111,7 +111,7 @@ final class Updater: ObservableObject {
         guard let http = response as? HTTPURLResponse, http.statusCode == 200,
               let page = http.url, page.pathComponents.dropLast().last == "tag",
               let tag = page.pathComponents.last
-        else { throw UpdateError("Couldn't find the latest release on GitHub — try again later.") }
+        else { throw UpdateError(String(localized: "Couldn't find the latest release on GitHub — try again later.")) }
 
         let zip = URL(string: "https://github.com/\(repo)/releases/download/\(tag)/Cape.zip")!
         var asset = URLRequest(url: zip)
@@ -159,15 +159,15 @@ final class Updater: ObservableObject {
         // A quarantined app opened from Downloads runs from a read-only
         // "translocated" copy — it can't replace itself there.
         if appURL.path.contains("/AppTranslocation/") {
-            state = .failed("Move Cape to your Applications folder, open it from there, then update.")
+            state = .failed(String(localized: "Move Cape to your Applications folder, open it from there, then update."))
             return
         }
         guard FileManager.default.isWritableFile(atPath: appURL.deletingLastPathComponent().path) else {
-            state = .failed("Cape can't write to \(appURL.deletingLastPathComponent().path).")
+            state = .failed(String(localized: "Cape can't write to \(appURL.deletingLastPathComponent().path)."))
             return
         }
         guard let requirement = Self.ownRequirement() else {
-            state = .failed("This copy of Cape isn't signed with the release key (a local ad-hoc build), so it can't verify updates. Download the new version manually.")
+            state = .failed(String(localized: "This copy of Cape isn't signed with the release key (a local ad-hoc build), so it can't verify updates. Download the new version manually."))
             return
         }
 
@@ -203,7 +203,7 @@ final class Updater: ObservableObject {
             let task = URLSession.shared.downloadTask(with: url) { tmp, response, error in
                 if let error { cont.resume(throwing: error); return }
                 guard let tmp, (response as? HTTPURLResponse)?.statusCode == 200 else {
-                    cont.resume(throwing: UpdateError("The download failed.")); return
+                    cont.resume(throwing: UpdateError(String(localized: "The download failed."))); return
                 }
                 // The temp file is deleted once this handler returns — keep it.
                 let dest = FileManager.default.temporaryDirectory
@@ -224,14 +224,14 @@ final class Updater: ObservableObject {
     /// same certificate as the running app (its designated requirement).
     private static func verify(_ app: URL, version: String, requirement: SecRequirement) throws {
         guard let bundle = Bundle(url: app), bundle.bundleIdentifier == "io.cape.app" else {
-            throw UpdateError("The download isn't Cape.")
+            throw UpdateError(String(localized: "The download isn't Cape."))
         }
         let got = bundle.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
-        guard got == version else { throw UpdateError("Version mismatch in the download (\(got)).") }
+        guard got == version else { throw UpdateError(String(localized: "Version mismatch in the download (\(got)).")) }
         var code: SecStaticCode?
         guard SecStaticCodeCreateWithPath(app as CFURL, [], &code) == errSecSuccess, let code,
               SecStaticCodeCheckValidity(code, SecCSFlags(rawValue: kSecCSCheckNestedCode), requirement) == errSecSuccess
-        else { throw UpdateError("The update's signature doesn't match — not installed.") }
+        else { throw UpdateError(String(localized: "The update's signature doesn't match — not installed.")) }
     }
 
     /// Our own designated requirement ("io.cape.app, sealed by certificate X") —

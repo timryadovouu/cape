@@ -49,7 +49,7 @@ private struct SessionRow: View {
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 9) {
-                StatusGlyph(status: session.status)
+                StatusGlyph(status: session.status, seen: session.seen)
                     .frame(width: 14, height: 14)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(session.title ?? session.project)
@@ -80,18 +80,18 @@ private struct SessionRow: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
-        .help(session.app == DesktopSessions.bundleID ? "Open this session in the Claude app"
-              : "Bring its terminal to the front")
+        .help(session.app == DesktopSessions.bundleID ? String(localized: "Open this session in the Claude app")
+              : String(localized: "Bring its terminal to the front"))
     }
 
     private func label(now: Date) -> String {
         let ago = ClaudePeekFormat.duration(now.timeIntervalSince(session.since))
         switch session.status {
         case .working: return ago
-        case .permission: return "needs you"
-        case .asking: return "asks you"
-        case .waiting: return "waiting · \(ago)"
-        case .done: return "done · \(ago) ago"
+        case .permission: return String(localized: "needs you")
+        case .asking: return String(localized: "asks you")
+        case .waiting: return String(localized: "waiting · \(ago)")
+        case .done: return String(localized: "done · \(ago) ago")
         }
     }
 }
@@ -130,8 +130,8 @@ private struct RequestCard: View {
                 .buttonStyle(.plain)
                 .help("Leave this to the terminal / Claude app")
                 Spacer()
-                pill("Deny", fill: Color.white.opacity(0.14)) { claude.answer(request, allow: false) }
-                pill("Allow", fill: Color.coral) { claude.answer(request, allow: true) }
+                pill(String(localized: "Deny"), fill: Color.white.opacity(0.14)) { claude.answer(request, allow: false) }
+                pill(String(localized: "Allow"), fill: Color.coral) { claude.answer(request, allow: true) }
             }
         }
         .padding(.horizontal, 9)
@@ -154,26 +154,24 @@ private struct RequestCard: View {
     }
 }
 
-/// Spinner while working, amber dot / question mark when it needs you, ✓ when done.
+/// Spinner while working, amber dot / question mark when it needs you, ✓ when
+/// done — or a tiny Clawd while you haven't looked at it yet.
 private struct StatusGlyph: View {
     let status: ClaudeSession.Status
+    var seen = true
 
     var body: some View {
         switch status {
         case .working:
-            TimelineView(.animation) { tl in
-                Circle()
-                    .trim(from: 0, to: 0.7)
-                    .stroke(Color.coral, style: StrokeStyle(lineWidth: 2, lineCap: .round))
-                    .rotationEffect(.degrees(tl.date.timeIntervalSinceReferenceDate * 360))
-                    .padding(1)
-            }
+            Spinner()
         case .permission, .waiting:
             ClaudeBlob(attention: true)
         case .asking:
             Image(systemName: "questionmark.circle.fill")
                 .font(.system(size: 13))
                 .foregroundStyle(ClaudeBlob.amber)
+        case .done where !seen:
+            Clawd(pixel: 1, lively: false)
         case .done:
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 13))
@@ -182,11 +180,23 @@ private struct StatusGlyph: View {
     }
 }
 
+/// A coral arc turning once a second.
+private struct Spinner: View {
+    @State private var turning = false
+    var body: some View {
+        Circle()
+            .trim(from: 0, to: 0.7)
+            .stroke(Color.coral, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+            .rotationEffect(.degrees(turning ? 360 : 0))
+            .padding(1)
+            .onAppear {
+                withAnimation(.linear(duration: 1).repeatForever(autoreverses: false)) { turning = true }
+            }
+    }
+}
+
 enum ClaudePeekFormat {
     static func duration(_ seconds: TimeInterval) -> String {
-        let s = max(0, Int(seconds))
-        if s < 60 { return "\(s)s" }
-        if s < 3600 { return "\(s / 60)m" }
-        return "\(s / 3600)h \(s % 3600 / 60)m"
+        formatDuration(max(0, Int(seconds)))
     }
 }

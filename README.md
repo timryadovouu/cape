@@ -54,6 +54,8 @@ dictation — and it **updates itself** from GitHub Releases.
 - Sits over the physical notch and morphs like the iPhone Dynamic Island.
 - Pinned to the built-in (notch) screen, so plugging in a TV or an extended
   display doesn't move it; works on notchless Macs too (a synthetic top-center notch).
+- In **English and Russian** — switch in Settings › General › Language.
+- A **welcome tour** on the first launch: the notch walks you through its real tabs and islands (again any time from Settings › Tips).
 
 ## Screenshots
 
@@ -66,7 +68,7 @@ dictation — and it **updates itself** from GitHub Releases.
   <img src="docs/screenshots/buffer.png" width="49%" alt="Buffer" />
 </p>
 <p align="center">
-  <img src="docs/screenshots/screenTime.png" width="49%" alt="Screen Time" />
+  <img src="docs/screenshots/screenTimeEnergy.png" width="49%" alt="Screen Time — battery use" />
   <img src="docs/screenshots/tools.png" width="49%" alt="Tools" />
 </p>
 
@@ -78,7 +80,7 @@ dictation — and it **updates itself** from GitHub Releases.
 | 📋 **Buffer** | A persistent clipboard. Everything you copy is saved as a **real file** under the buffer folder, in a per-day `YYYY-MM-DD` subfolder — text, images, and any copied files. The list is grouped under **Pinned / Today / Yesterday / date** headers, with the copy time on every entry. Click an entry to copy it back, or **drag it straight out** to Finder / any app. Per-row **star / copy / delete** on hover — **starred items pin to the top and survive** retention, "Clear day", and end-of-day wipes. "Finder" opens the folder, "Clear day" wipes today. A **mic** button dictates speech straight into the buffer (see *Voice dictation*). **Copy an image with a QR code** — a screenshot to the clipboard (⌃⇧⌘4), say — and each code's link is added as its own entry right under it (can be turned off). |
 | 🎵 **Media** | Now playing for **Spotify** (AppleScript) and **cmus** (`cmus-remote`): **cover art**, title and artist, and a coral **progress bar** — click or drag to seek; click the right-hand time to switch between *time left* and *track length*. Covers come from Spotify, or for cmus from a `cover` / `folder` / `front` / `album` `.jpg`/`.png` in the album folder (or art embedded in MP3/M4A files). It also finds covers of albums ripped as one file with a cue sheet and of tracks in `Disc 1` / `CD2` folders. **Media keys (F7 / F8 / F9) work for cmus too** — Cape forwards them, and the track shows up in Control Center. |
 | ✅ **Tasks** | A local to-do list with **reminders**. Write the time right into the task — *"позвонить маме в 15:00"*, *"через 20 минут"*, *"завтра в 9"*, *"call mom at 3pm"* (24-hour clock) — or click the 🔔 on any task to open its **card**: edit the text, pick a quick time (in 1 h, 18:00, tomorrow 9:00, Monday 9:00) or a date on the calendar and a 24-hour time. Enter saves, Esc closes. When it's due, a **ringing bell** slides out to the right of the notch with a sound; hover it to jump to Tasks. With reminders around, tasks are grouped into **Overdue / Today / Upcoming / No date / Done**. Copy, delete, and a trash that keeps deleted tasks for a while. |
-| ⏳ **Screen Time** | Local, on-device usage tracking: it credits the frontmost app every second and shows ranked apps (with icons), total time and switch count — **how many apps to list is up to you** (top 5–20 or all). A **ring splits the day by category** — Work, Browsing, Social, Entertainment, Learning, Other — sorted automatically (known apps, then the category an app declares); click a category to list only its apps, whose bars take its color. **Each day is kept as its own snapshot — browse past days with ◀ / ▶**, and toggle a bar chart of the current week (Mon–Sun). Resets at midnight; history retention is configurable. |
+| ⏳ **Screen Time** | Local, on-device usage tracking: it credits the frontmost app every second and shows ranked apps (with icons), total time and switch count — **how many apps to list is up to you** (top 5–20 or all). A **ring splits the day by category** — Work, Browsing, Social, Entertainment, Learning, Other — sorted automatically (known apps, then the category an app declares); click a category to list only its apps, whose bars take its color. **Each day is kept as its own snapshot — browse past days with ◀ / ▶**, and toggle a bar chart of the current week (Mon–Sun). **⚡ Battery use:** the same list by how much of a full charge each app used — every row shows both (“46m · 6.2%”) — with the day's total, the ring and the week chart in battery terms; counted on battery only (default) or all the time. **It adds up to what the battery really lost**: an app gets its own work (measured by macOS per process, helpers counted for their app) plus the screen and the rest of the Mac while it was in front — as the iPhone does; time away goes to macOS. Hover a figure for the split. Resets at midnight; history retention is configurable. |
 
 The **Tasks, Buffer and Screen Time** panels have a little home-indicator grabber
 at the bottom — tap it to grow the panel vertically (and again to shrink).
@@ -105,10 +107,13 @@ combination with ⌘, ⌥ or ⌃ — no extra permission needed).
   wheel flips twice). A Magic Mouse counts as a trackpad here.
 - **QR in images** (a switch) — links from QR codes in copied images go to the
   buffer (see *Buffer*).
-- **Ports** — what's listening on this Mac's TCP ports: port, process, project
-  folder, uptime, and **LAN** when it's reachable from your network. Open one in
-  the browser or stop it (click ✕ twice); dev servers are shown, *Show all* adds
-  system services. Read with `lsof`, only while the page is open.
+- **Ports** — what's listening on this Mac's TCP ports, one row per process:
+  port(s), project folder, uptime, and **LAN** when it's reachable from your
+  network. Open one in the browser or stop it (click ✕ twice); dev servers are
+  shown, *Show all* adds system services. **Jupyter kernels** (a notebook open in
+  VS Code or Jupyter) are recognized and shown as one row with their ports — no
+  browser button, and stopping one warns that the notebook loses its variables.
+  Read with `lsof`, only while the page is open.
 
 ## Beside the camera
 
@@ -122,14 +127,16 @@ figure. No tab, no clutter — just there while you're already looking.
 
 Even when closed, the brow stays useful:
 
-- **Left** — a pulsing **equalizer** while music plays (a coral ⏸ when paused);
+- **Left** — a pulsing **equalizer** while music plays — or the album cover, if you
+  prefer (Settings › Notch) — and a coral ⏸ when paused;
   **click it to pause / play**, rest on it a moment to open straight to Media
   (can be turned off). Brief flashes also appear here: a coral clip on copy,
   **Focus / Break** on a timer phase change, the picked color, a QR link, a
   finished terminal command (✓ / ✗), a new Cape version, and — when you **plug in
   the charger** — a springing ⚡ with a battery filling up to the current percent.
 - **Right** — a pulsing **coral blob** while a Claude Code session is working,
-  **amber** when one waits for you — hover it for the sessions list (see below);
+  **amber** when one waits for you, and **Clawd** 🦀 when one finished while you
+  were away — hover it for the sessions list (see below);
   the Pomodoro **countdown** while a timer runs (hover it for inline
   **pause / next / cancel**); and a **ringing bell** when a task reminder is due.
 
@@ -150,6 +157,12 @@ gives you:
   session is working — it lights only between your prompt and Claude's stop (and
   stays lit through long turns), so it's a real "thinking now" indicator. It turns
   **amber** when a session **waits for you**.
+- **Clawd** — finished while you were in another app? Claude Code's pixel
+  critter sits in the island until you look: click him to jump into that
+  session, or just switch to the app it runs in. He waves, stomps and blinks
+  every few seconds, looks toward the cursor, stretches on a Pomodoro break;
+  waiting long, he dozes off (z z Z), and in the end walks home behind the
+  camera. One per session, up to four side by side (*Settings › Claude*).
 - **Hover the blob** and your sessions drop down from the brow — as wide as the
   brow itself: what each is doing (working · needs you · asks you · done), its
   title and your last prompt. **Click a session to jump into it** — in the Claude
@@ -248,18 +261,19 @@ in the buffer.
 The coral **gear** opens a resizable window with a sidebar of pages, like
 System Settings (it remembers its size and the last page):
 
-- **General** — Launch at login and Track Claude Code.
+- **General** — Launch at login, Track Claude Code, and the interface language (English / Русский).
+- **Tips** — how to use Cape on one page, and *Show the tour* for the welcome tour.
 - **Updates** — current version, *Check for Updates*, *Install & Relaunch*, and automatic checks.
-- **Notch** — the default tab, the reset-to-default-tab delay, *open Media when hovering the music island*, and the charging flash.
+- **Notch** — the default tab, the reset-to-default-tab delay, *open Media when hovering the music island*, equalizer or album cover in that island, and the charging flash.
 - **Tabs** — enable/disable and reorder the tabs in the rail.
 - **Timer** — short/long break lengths, the end-of-session sound, and whether it plays during a Focus.
 - **Tasks** — the reminder sound.
 - **Buffer** — folder location, auto-clear age or clear-at-end-of-day, and QR codes in copied images.
-- **Screen Time** — how long to keep daily history (default 1 year), and how many apps the list shows.
+- **Screen Time** — how long to keep daily history (default 1 year), how many apps the list shows, and whether battery use counts only on battery.
 - **Voice** — dictation model (downloaded once, with a delete button and a ✓ on the ones you have), spoken language, translate-to-English, the double-tap key, hold-to-talk keys, and preloading the model at launch.
 - **Tools** — a global shortcut for each tool, and the reversed mouse wheel.
 - **Terminal** — install `cape done` into zsh, its sound, and the long-command flash with its threshold.
-- **Claude** — Allow / Deny from the notch and its timeout, and an optional sound when Claude finishes (its own system sound, plus Focus/DND and *mute while the Claude app is in front* toggles).
+- **Claude** — Allow / Deny from the notch and its timeout; Clawd (on / off, how long he waits, when he falls asleep); and an optional sound when Claude finishes (its own system sound, plus Focus/DND and *mute while the Claude app is in front* toggles).
 
 ## Install & run
 
@@ -368,43 +382,6 @@ Spotify cover images, and the one-time dictation model download.
   **Reverse wheel**.
 - **Pick color**, **Ports**, **QR in images**, **`cape done`**, the Claude
   sessions list and the **tool shortcuts** need no permission.
-
-## Project structure
-
-```
-Sources/Cape/
-  main.swift / AppDelegate.swift      app entry (accessory policy, app icon, Edit menu)
-  StatusLine.swift                    `statusline` subcommand for Claude Code
-  PermissionHook.swift                `permission` subcommand: Allow / Deny via the notch
-  ClaudePeek.swift                    the Claude sessions list under the brow
-  DesktopLimitReader.swift            reads the limit reset time from the Claude desktop app
-  ScreenNotch.swift                   notch geometry (+ non-notch fallback)
-  NotchController.swift               the window over the notch + hover logic
-  NotchRootView.swift                 the brow, its morphing, islands, charging & reminder badges
-  ExpandedPanel.swift                 CPU/RAM header, icon rail + module hosting
-  GrabberBar.swift                    shared grow/shrink pill
-  *Panel.swift                        per-module UI
-  PomodoroModel / BufferManager /
-  MediaController / AppUsageTracker /
-  TodoStore / SystemStats /
-  ClaudeSessionsManager               module & integration logic
-  DueParser.swift                     reminder times from task text (RU / EN)
-  VoiceDictation.swift                on-device dictation (WhisperKit) + mic capture
-  DictationHotkey.swift               double-tap & hold-to-talk dictation keys
-  Tools.swift                         Tools page, global shortcuts, shortcut recorder
-  EyeDropper.swift / KeyboardCleaner.swift /
-  ScrollReverser.swift / Ports.swift  the tools
-  QRScanner.swift                     QR codes in copied images (Vision)
-  AppCategory.swift                   Screen Time categories
-  ShellIntegration.swift              `cape done` for zsh
-  PowerMonitor.swift                  charger-connected detection
-  Updater.swift                       in-app updates from GitHub Releases
-  Screenshots.swift                   dev tool: renders docs/screenshots from demo data
-  Settings.swift / SettingsPanel.swift  settings model + window
-Resources/AppIcon.png                 app icon source
-build-app.sh                          release build → signed Cape.app
-.github/workflows/                    CI: build on push, publish signed releases on version tags
-```
 
 ## License
 

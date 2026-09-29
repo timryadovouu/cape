@@ -3,19 +3,48 @@ import Darwin
 import SwiftUI
 
 /// "Ports": what's listening on this Mac's TCP ports — the dev server on
-/// :3000, a forgotten Vite on :5173 — with its project folder and uptime, a
-/// click to open it in the browser, and one to stop it. Read with `lsof` (your
-/// own processes, no permission needed); polled only while the page is open.
+/// :3000, a forgotten Vite on :5173 — one row per process, with its project
+/// folder and uptime, a click to open it in the browser, and one to stop it.
+/// Read with `lsof` (your own processes, no permission needed); polled only
+/// while the page is open.
 final class PortsMonitor: ObservableObject {
+    /// One listening process and all its ports.
     struct Listener: Identifiable, Equatable {
-        var id: String { "\(pid):\(port)" }
-        let port: Int
+        enum Kind: Equatable {
+            case server           // speaks HTTP, most likely — open it in the browser
+            case jupyter          // Jupyter Lab / Notebook server (HTTP)
+            case jupyterKernel    // a notebook's kernel: ZeroMQ channels, not a web page
+        }
+        var id: pid_t { pid }
+        let ports: [Int]          // sorted
         let pid: pid_t
         let name: String          // "node", "Python", "Docker"
         let project: String?      // working-directory folder, e.g. "my-app"
         let started: Date?
         let exposed: Bool         // bound to all interfaces (reachable from the LAN)
         let isDev: Bool           // a dev tool, not a system service / regular app
+        var kind: Kind = .server
+
+        var port: Int { ports.first ?? 0 }
+        var title: String {
+            switch kind {
+            case .server: return name
+            case .jupyter: return String(localized: "Jupyter")
+            case .jupyterKernel: return String(localized: "Jupyter kernel")
+            }
+        }
+        /// "9000–9004, 52055": runs of consecutive ports collapsed.
+        var portList: String {
+            var runs: [String] = []
+            var i = 0
+            while i < ports.count {
+                var j = i
+                while j + 1 < ports.count && ports[j + 1] == ports[j] + 1 { j += 1 }
+                runs.append(j > i ? "\(ports[i])–\(ports[j])" : "\(ports[i])")
+                i = j + 1
+            }
+            return runs.joined(separator: ", ")
+        }
     }
 
     @Published private(set) var listeners: [Listener] = []
@@ -73,6 +102,7 @@ final class PortsMonitor: ObservableObject {
     }
 
     func open(_ listener: Listener) {
+        guard listener.kind != .jupyterKernel else { return }
         if let url = URL(string: "http://localhost:\(listener.port)") { NSWorkspace.shared.open(url) }
     }
 
@@ -108,15 +138,45 @@ final class PortsMonitor: ObservableObject {
         for (pid, byPort) in ports {
             let exe = executablePath(pid)
             let name = displayName(exe)
-            let dev = isDevTool(name: name, path: exe)
-            let project = workingDirectory(pid).flatMap(projectName)
-            let started = startTime(pid)
-            for (port, exposed) in byPort {
-                result.append(Listener(port: port, pid: pid, name: name, project: project,
-                                       started: started, exposed: exposed, isDev: dev))
-            }
+            result.append(Listener(ports: byPort.keys.sorted(), pid: pid, name: name,
+                                   project: workingDirectory(pid).flatMap(projectName),
+                                   started: startTime(pid), exposed: byPort.values.contains(true),
+                                   isDev: isDevTool(name: name, path: exe),
+                                   kind: kind(arguments(pid))))
         }
         return result.sorted { $0.port < $1.port }
+    }
+
+    /// What a process is, from its command line: `python -m ipykernel_launcher …`
+    /// is a notebook kernel (VS Code, Jupyter); `jupyter-lab` & co. serve the UI.
+    private static func kind(_ args: [String]) -> Listener.Kind {
+        let line = args.joined(separator: " ")
+        if line.contains("ipykernel") { return .jupyterKernel }
+        if ["jupyter-lab", "jupyter-notebook", "jupyter-server", "jupyter_server", "jupyterlab"]
+            .contains(where: line.contains) { return .jupyter }
+        return .server
+    }
+
+    /// The process's argv (KERN_PROCARGS2: argc, the exec path, then the
+    /// NUL-separated arguments). Readable for your own processes.
+    private static func arguments(_ pid: pid_t) -> [String] {
+        var mib: [Int32] = [CTL_KERN, KERN_PROCARGS2, pid]
+        var size = 0
+        guard sysctl(&mib, 3, nil, &size, nil, 0) == 0, size > MemoryLayout<Int32>.size else { return [] }
+        var buf = [UInt8](repeating: 0, count: size)
+        guard sysctl(&mib, 3, &buf, &size, nil, 0) == 0, size > MemoryLayout<Int32>.size else { return [] }
+        let argc = Int(buf.withUnsafeBytes { $0.load(as: Int32.self) })
+        var i = MemoryLayout<Int32>.size
+        while i < size && buf[i] != 0 { i += 1 }      // the exec path
+        while i < size && buf[i] == 0 { i += 1 }      // its padding
+        var args: [String] = []
+        while args.count < argc && i < size {
+            let start = i
+            while i < size && buf[i] != 0 { i += 1 }
+            args.append(String(decoding: buf[start..<i], as: UTF8.self))
+            i += 1
+        }
+        return args
     }
 
     private static func executablePath(_ pid: pid_t) -> String? {
@@ -177,7 +237,7 @@ struct PortsPage: View {
     @ObservedObject var ports: PortsMonitor
     let onBack: () -> Void
     @State private var showAll = false
-    @State private var confirmKill: String?     // listener id awaiting the second click
+    @State private var confirmKill: pid_t?      // process awaiting the second click
 
     private var shown: [PortsMonitor.Listener] {
         showAll ? ports.listeners : ports.listeners.filter(\.isDev)
@@ -214,7 +274,7 @@ struct PortsPage: View {
                 Spacer()
             } else if shown.isEmpty {
                 Spacer()
-                Text(showAll ? "Nothing is listening" : "No dev servers running")
+                Text(showAll ? String(localized: "Nothing is listening") : String(localized: "No dev servers running"))
                     .font(.system(size: 12)).foregroundStyle(.white.opacity(0.4))
                 Spacer()
             } else {
@@ -230,19 +290,27 @@ struct PortsPage: View {
     }
 
     private func row(_ l: PortsMonitor.Listener) -> some View {
-        HStack(spacing: 10) {
-            Text(verbatim: ":\(l.port)")
-                .font(.system(size: 13, weight: .bold, design: .monospaced))
-                .foregroundStyle(l.isDev ? Color.coral : .white.opacity(0.6))
-                .frame(width: 62, alignment: .leading)
+        let kernel = l.kind == .jupyterKernel
+        return HStack(spacing: 10) {
+            Group {
+                if kernel {
+                    Image(systemName: "book.closed.fill").font(.system(size: 14))
+                } else {
+                    Text(verbatim: ":\(l.port)").font(.system(size: 13, weight: .bold, design: .monospaced))
+                }
+            }
+            .foregroundStyle(l.isDev ? Color.coral : .white.opacity(0.6))
+            .frame(width: 62, alignment: .leading)
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 5) {
-                    Text(l.name).font(.system(size: 12, weight: .medium)).lineLimit(1)
+                    Text(l.title).font(.system(size: 12, weight: .medium)).lineLimit(1)
                     if let project = l.project {
                         Text(project).font(.system(size: 11)).foregroundStyle(.white.opacity(0.55)).lineLimit(1)
                     }
                 }
                 HStack(spacing: 5) {
+                    // Several ports, or a kernel (whose ports aren't in the left column).
+                    if l.ports.count > 1 || kernel { Text(verbatim: "\(l.portList) ·") }
                     Text(verbatim: "pid \(l.pid)")
                     if let started = l.started { Text("· up \(uptime(started))") }
                     if l.exposed {
@@ -253,19 +321,23 @@ struct PortsPage: View {
                 .font(.system(size: 9)).foregroundStyle(.white.opacity(0.4))
             }
             Spacer(minLength: 4)
-            iconButton("safari", help: "Open localhost:\(l.port)") { ports.open(l) }
+            if !kernel {
+                iconButton("safari", help: String(localized: "Open localhost:\(String(l.port))")) { ports.open(l) }
+            }
             if confirmKill == l.id {
                 Button { confirmKill = nil; ports.kill(l) } label: {
                     Text("Stop?")
                         .font(.system(size: 10, weight: .semibold))
                         .frame(width: 44, height: 26)
                         .foregroundStyle(.white)
-                        .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.red.opacity(0.6)))
+                        .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.capeRed.opacity(0.6)))
                 }
                 .buttonStyle(.plain)
-                .help("Click again to stop \(l.name) (pid \(l.pid))")
+                .help(kernel ? String(localized: "Click again to stop this kernel — the notebook loses its variables")
+                      : String(localized: "Click again to stop \(l.name) (pid \(String(l.pid)))"))
             } else {
-                iconButton("xmark", help: "Stop this process", danger: true) {
+                iconButton("xmark", help: kernel ? String(localized: "Stop this kernel (the notebook loses its variables)")
+                                                 : String(localized: "Stop this process"), danger: true) {
                     confirmKill = l.id
                     // The confirmation quietly resets if not clicked.
                     DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
@@ -288,18 +360,14 @@ struct PortsPage: View {
                 .frame(width: 26, height: 26)
                 .foregroundStyle(danger ? Color(red: 1, green: 0.5, blue: 0.5) : .white.opacity(0.75))
                 .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .fill(danger ? Color.red.opacity(0.18) : Color.white.opacity(0.13)))
+                    .fill(danger ? Color.capeRed.opacity(0.18) : Color.white.opacity(0.13)))
         }
         .buttonStyle(.plain)
         .help(help)
     }
 
     private func uptime(_ since: Date) -> String {
-        let s = Int(Date().timeIntervalSince(since))
-        if s < 60 { return "\(s)s" }
-        if s < 3600 { return "\(s / 60)m" }
-        if s < 86_400 { return "\(s / 3600)h \(s % 3600 / 60)m" }
-        return "\(s / 86_400)d"
+        formatDuration(max(0, Int(Date().timeIntervalSince(since))))
     }
 }
 
@@ -341,10 +409,15 @@ struct PortsBar: View {
         .onDisappear { ports.stop() }
     }
 
+    /// ":3000 web · :5173 docs · 2 Jupyter kernels".
     private func summary(_ dev: [PortsMonitor.Listener]) -> String {
         guard ports.loaded else { return "" }
-        if dev.isEmpty { return "no dev servers" }
-        let list = dev.prefix(4).map { ":\($0.port) \($0.project ?? $0.name)" }.joined(separator: " · ")
-        return dev.count > 4 ? list + " +\(dev.count - 4)" : list
+        if dev.isEmpty { return String(localized: "no dev servers") }
+        let servers = dev.filter { $0.kind != .jupyterKernel }
+        let kernels = dev.count - servers.count
+        var parts = servers.prefix(3).map { ":\($0.port) \($0.project ?? $0.title)" }
+        if servers.count > 3 { parts.append("+\(servers.count - 3)") }
+        if kernels > 0 { parts.append(kernels == 1 ? String(localized: "1 Jupyter kernel") : String(localized: "\(kernels) Jupyter kernels")) }
+        return parts.joined(separator: " · ")
     }
 }

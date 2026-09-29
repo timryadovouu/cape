@@ -10,12 +10,12 @@ enum AppCategory: String, CaseIterable, Identifiable {
 
     var name: String {
         switch self {
-        case .work: return "Work"
-        case .browsing: return "Browsing"
-        case .social: return "Social"
-        case .entertainment: return "Entertainment"
-        case .learning: return "Learning"
-        case .other: return "Other"
+        case .work: return String(localized: "Work")
+        case .browsing: return String(localized: "Browsing")
+        case .social: return String(localized: "Social")
+        case .entertainment: return String(localized: "Entertainment")
+        case .learning: return String(localized: "Learning")
+        case .other: return String(localized: "Other")
         }
     }
 

@@ -192,10 +192,11 @@ final class AppUsageTracker: ObservableObject {
     static func date(from s: String) -> Date? { fmt.date(from: s) }
 }
 
-/// "1h 23m" / "12m" / "45s"
+/// "1h 23m" / "12m" / "45s" / "3d" — in the interface language ("1 ч 23 мин").
 func formatDuration(_ seconds: Int) -> String {
-    let h = seconds / 3600, m = (seconds % 3600) / 60, s = seconds % 60
-    if h > 0 { return "\(h)h \(m)m" }
-    if m > 0 { return "\(m)m" }
-    return "\(s)s"
+    let d = seconds / 86_400, h = seconds / 3600, m = (seconds % 3600) / 60, s = seconds % 60
+    if d > 0 { return String(localized: "\(d)d") }
+    if h > 0 { return String(localized: "\(h)h \(m)m") }
+    if m > 0 { return String(localized: "\(m)m") }
+    return String(localized: "\(s)s")
 }

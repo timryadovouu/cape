@@ -25,7 +25,9 @@ final class NotchController {
     private var metrics: NotchMetrics
     private var hosting: FirstMouseHostingView<NotchRootView>!
     private var pollTimer: Timer?
+    private var mouseMonitors: [Any] = []
     private var screenObserver: NSObjectProtocol?
+    private var tourObserver: NSObjectProtocol?
     private var shortcutsSub: AnyCancellable?
 
     private let windowWidth: CGFloat = 640
@@ -81,7 +83,7 @@ final class NotchController {
 
         positionWindow()
         panel.orderFrontRegardless()
-        startPolling()
+        startTracking()
 
         // Displays changed (external monitor/TV connected, arrangement or primary
         // display changed) shifts global coordinates and can strand the brow on the
@@ -89,10 +91,19 @@ final class NotchController {
         screenObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification,
             object: nil, queue: .main) { [weak self] _ in self?.screensChanged() }
+
+        // The welcome tour: on a fresh install, and on demand from Settings › Tips.
+        tourObserver = NotificationCenter.default.addObserver(
+            forName: .capeShowTour, object: nil, queue: .main) { [weak self] _ in self?.startTour() }
+        if Tour.shouldShowOnLaunch {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in self?.startTour() }
+        }
     }
 
     deinit {
         if let screenObserver { NotificationCenter.default.removeObserver(screenObserver) }
+        if let tourObserver { NotificationCenter.default.removeObserver(tourObserver) }
+        mouseMonitors.forEach(NSEvent.removeMonitor)
     }
 
     private func makeRootView() -> NotchRootView {
@@ -119,8 +130,22 @@ final class NotchController {
 
     // MARK: - Hover tracking
 
-    private func startPolling() {
-        let t = Timer(timeInterval: 0.02, repeats: true) { [weak self] _ in
+    private func startTracking() {
+        // React to the mouse moving — over other apps (global monitor) and over
+        // our own windows (local) — instead of checking 50 times a second.
+        let mask: NSEvent.EventTypeMask = [.mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged]
+        if let global = NSEvent.addGlobalMonitorForEvents(matching: mask, handler: { [weak self] _ in
+            self?.updateHover()
+        }) { mouseMonitors.append(global) }
+        if let local = NSEvent.addLocalMonitorForEvents(matching: mask, handler: { [weak self] event in
+            self?.updateHover()
+            return event
+        }) { mouseMonitors.append(local) }
+        panel.acceptsMouseMovedEvents = true
+        // Things also change under a still cursor — the grace period after a tap
+        // ends, the Media hover delay runs out, an island appears — so a slow
+        // check covers those.
+        let t = Timer(timeInterval: 0.25, repeats: true) { [weak self] _ in
             self?.updateHover()
         }
         RunLoop.main.add(t, forMode: .common)
@@ -147,12 +172,34 @@ final class NotchController {
         return NSRect(x: metrics.centerX - w / 2, y: bottom, width: w, height: f.maxY - bottom + 40)
     }
 
+    /// Open the notch on the tour's first step; it stays open until the tour ends.
+    private func startTour() {
+        state.claudePeek = false
+        state.tourStep = 0          // set first: it keeps the notch open
+        expand()
+        state.tall = true           // room for the tab and the explanation
+        Tour.show(0, state: state, settings: modules.settings)
+        panel.ignoresMouseEvents = false
+    }
+
     private func updateHover() {
+        // The tour keeps the notch open (and clickable) whatever the cursor does.
+        if state.tourStep != nil {
+            if !state.expanded { expand() }
+            panel.ignoresMouseEvents = false
+            return
+        }
         let mouse = NSEvent.mouseLocation
         if state.expanded {
             if Date() < state.holdUntil { return }    // grace period after a grabber tap
             if !expandedZone.contains(mouse) { collapse() }
             return
+        }
+        // Clawd looks toward the cursor.
+        if !modules.claude.clawds.isEmpty {
+            let dx = mouse.x - (metrics.centerX + metrics.notchWidth / 2 + claudeIslandW / 2)
+            let look = dx < -30 ? -1 : (dx > 30 ? 1 : 0)
+            if look != state.clawdLook { state.clawdLook = look }
         }
         // Collapsed: hovering the running timer pill reveals its inline controls
         // (pause / next / cancel) and makes them clickable — without expanding.
@@ -214,9 +261,19 @@ final class NotchController {
     /// When the cursor came onto the music island (for the open-Media delay).
     private var mediaHoverStart: Date?
 
-    private var claudeIslandShown: Bool {
+    /// The Claude island is out (it takes room on the right)…
+    private var claudeIslandVisible: Bool {
         let c = modules.claude
-        return modules.settings.trackClaude && (c.anyWorking || c.needsYou) && !c.sessions.isEmpty
+        return modules.settings.trackClaude && (c.anyWorking || c.needsYou || !c.clawds.isEmpty)
+    }
+    /// …and has sessions to show on hover.
+    private var claudeIslandShown: Bool { claudeIslandVisible && !modules.claude.sessions.isEmpty }
+
+    /// Its width: the dot's island, or wider for three or four Clawds.
+    private var claudeIslandW: CGFloat {
+        let c = modules.claude
+        guard modules.settings.trackClaude, !(c.anyWorking || c.needsYou) else { return NotchRootView.claudeIslandWidth }
+        return NotchRootView.claudeIslandWidth(clawds: c.clawds.count)
     }
 
     /// The small Claude island just right of the camera.
@@ -225,7 +282,7 @@ final class NotchController {
         let f = metrics.screenFrame
         let startX = metrics.centerX + metrics.notchWidth / 2
         let bottom = f.maxY - metrics.notchHeight - 2
-        return NSRect(x: startX, y: bottom, width: NotchRootView.claudeIslandWidth, height: f.maxY - bottom + 40)
+        return NSRect(x: startX, y: bottom, width: claudeIslandW, height: f.maxY - bottom + 40)
     }
 
     /// The island plus the list under it (same geometry as NotchRootView).
@@ -233,7 +290,7 @@ final class NotchController {
         guard claudeIslandShown else { return nil }
         let f = metrics.screenFrame
         let c = modules.claude
-        let right = metrics.centerX + metrics.notchWidth / 2 + NotchRootView.claudeIslandWidth
+        let right = metrics.centerX + metrics.notchWidth / 2 + claudeIslandW
         let left = mediaLeftEdge()
         let h = ClaudePeekPanel.height(sessions: c.sessions, permissions: c.permissions)
         let bottom = f.maxY - metrics.notchHeight - NotchRootView.topOvershoot - h - 10
@@ -256,7 +313,7 @@ final class NotchController {
     private func pomodoroControlZone() -> NSRect? {
         guard modules.pomodoro.isActive else { return nil }
         let f = metrics.screenFrame
-        let claudeExt: CGFloat = claudeIslandShown ? NotchRootView.claudeIslandWidth : 0
+        let claudeExt: CGFloat = claudeIslandVisible ? claudeIslandW : 0
         let rightTotal = NotchRootView.timerPillWidth
             + (state.pomodoroControls ? NotchRootView.pomodoroControlsWidth : 0)
         let startX = metrics.centerX + metrics.notchWidth / 2 + claudeExt
@@ -288,7 +345,7 @@ final class NotchController {
         let ringing = modules.todo.ringing
         guard !ringing.isEmpty else { return nil }
         let f = metrics.screenFrame
-        let claudeExt: CGFloat = claudeIslandShown ? NotchRootView.claudeIslandWidth : 0
+        let claudeExt: CGFloat = claudeIslandVisible ? claudeIslandW : 0
         let timerExt: CGFloat = modules.pomodoro.isActive
             ? NotchRootView.timerPillWidth
                 + (state.pomodoroControls ? NotchRootView.pomodoroControlsWidth : 0)

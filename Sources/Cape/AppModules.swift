@@ -14,6 +14,7 @@ final class AppModules {
     let keyboardCleaner = KeyboardCleaner()
     let power = PowerMonitor()
     let ports = PortsMonitor()
+    let energy: EnergyMonitor
     let updater: Updater
     let scrollReverser: ScrollReverser
     let shell: ShellIntegration
@@ -27,6 +28,7 @@ final class AppModules {
         buffer = BufferManager(settings: settings)
         system = SystemStats()
         usage = AppUsageTracker(settings: settings)
+        energy = EnergyMonitor(settings: settings, live: Screenshots.outputDir == nil)
         todo = TodoStore()
         media = MediaController(mediaKeys: Screenshots.outputDir == nil)
         claude = ClaudeSessionsManager(settings: settings, live: Screenshots.outputDir == nil)

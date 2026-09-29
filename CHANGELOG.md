@@ -4,6 +4,74 @@ All notable changes to Cape are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.5.0] — 2026-09-29
+
+### Added
+- **Battery use per app** — the ⚡ button in Screen Time shows how much of a full
+  charge (today's, worn battery included) each app used that day (“Safari · 46m
+  · 6.2%”), sorted by it, with the day's total, the category ring and the week
+  chart in battery terms too. Every row shows both time and battery. **It adds
+  up to what the battery really lost:** an app gets its own work — measured by
+  macOS for every process once a minute, helpers counted for their app
+  (Chrome's, VS Code's…) — plus the screen and the rest of the Mac while it was
+  in front, as the iPhone does; time away (no input, the display or the Mac
+  asleep) goes to “macOS”. Hover a figure for the split. Counts only time on
+  battery by default, or all the time (*Settings › Screen Time*). Nothing like
+  it in macOS itself.
+- **Clawd waits for you** — when a Claude session finishes while you're in
+  another app, Claude Code's little pixel critter takes the island's place and
+  stays until you look: click him (straight to that session), pick it in the
+  list, or switch to the app it runs in — then he leaves with a happy hop. He
+  hops in with a wave, then every few seconds waves, stomps, blinks or hops;
+  looks toward the cursor; stretches during a Pomodoro break. Waiting long, he
+  dozes off (z z Z — hover to wake him); in the end he waves and walks home
+  behind the camera — as he does when you quit that app. One Clawd per session,
+  up to four side by side. In *Settings › Claude*: how long he waits (1 hour by
+  default) and when he falls asleep (5 min) — or turn him off.
+- **Russian interface** — the notch, Settings, flashes, dates and even the
+  permission prompts. English stays the default; switch in *Settings › General ›
+  Language* (Cape relaunches to change it).
+- **Album cover in the music island** — while music plays, the island left of
+  the camera can show the cover instead of the equalizer (*Settings › Notch*);
+  ⏸ stays as it is, and without a cover it falls back to the equalizer.
+- **Tips** in Settings — how to use the notch, the islands and the extras, on
+  one page.
+- **Welcome tour** — on the first launch the notch opens and walks through the
+  real tabs one by one (each explained in a strip below — including that
+  dictation starting with “note” / “заметка” goes to Tasks, time and all), then
+  the islands around the camera (drawn) and a few switches for what to turn on.
+  Run it again from *Settings › Tips*. People updating from an earlier Cape
+  don't get it unasked.
+
+### Changed
+- **One red instead of four** — Quit, the CPU bar, the Pomodoro focus time,
+  delete / stop buttons, an overdue task and a failed command now share the same
+  red, beside the coral accent; they used to be four slightly different reds.
+- **The app icon has a transparent background** — no more white square around
+  it in Finder, in the welcome tour, or on GitHub's dark theme.
+- **Lighter on the battery:**
+  - the notch reacts to the mouse moving instead of checking the cursor 50
+    times a second;
+  - the music player is asked only when something can have changed — Spotify
+    announces its changes itself, cmus is queried only while it runs (every 2 s
+    playing, 6 s paused) — so with no player open, no process is launched at all
+    (it used to be one every 1.5 s);
+  - the pulsing Claude blob, the music equalizer, the ringing bell and the paused
+    timer are plain repeating animations now — they used to redraw the whole
+    notch every frame, about 15–20 % of a CPU core while one was showing (now
+    ~3 %).
+- **Ports** shows one row per process with all its ports (`9000–9004, 52055`)
+  instead of a row per port, and recognizes **Jupyter kernels** — a notebook open
+  in VS Code or Jupyter used to fill the list with six anonymous Python ports
+  each. Kernels get no browser button, and stopping one warns that the notebook
+  loses its variables.
+
+### Fixed
+- **The Claude island no longer keeps "thinking" after Claude finished.** The
+  hook writes each event in pieces; when Cape read the log mid-line, that event
+  was lost — a lost "finished" left the coral blob on for ten minutes, and no
+  Clawd. Cape now reads whole lines only.
+
 ## [0.4.0] — 2026-09-25
 
 ### Added
@@ -273,6 +341,7 @@ Initial public beta.
 - A standalone **Settings** window, Launch at login, and GitHub Actions CI +
   releases.
 
+[0.5.0]: https://github.com/timryadovouu/cape/releases/tag/v0.5.0
 [0.4.0]: https://github.com/timryadovouu/cape/releases/tag/v0.4.0
 [0.3.3]: https://github.com/timryadovouu/cape/releases/tag/v0.3.3
 [0.3.2]: https://github.com/timryadovouu/cape/releases/tag/v0.3.2

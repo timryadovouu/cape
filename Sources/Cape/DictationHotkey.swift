@@ -9,9 +9,9 @@ enum VoiceHotkeyTrigger: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .option:      return "Double-tap ⌥ Option (either side)"
-        case .rightOption: return "Double-tap right ⌥ Option"
-        case .control:     return "Double-tap ⌃ Control (either side)"
+        case .option:      return String(localized: "Double-tap ⌥ Option (either side)")
+        case .rightOption: return String(localized: "Double-tap right ⌥ Option")
+        case .control:     return String(localized: "Double-tap ⌃ Control (either side)")
         }
     }
 

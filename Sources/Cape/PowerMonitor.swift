@@ -32,7 +32,7 @@ final class PowerMonitor {
         onPluggedIn?(level)
     }
 
-    private static func isOnAC() -> Bool {
+    static func isOnAC() -> Bool {
         guard let info = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
               let type = IOPSGetProvidingPowerSourceType(info)?.takeUnretainedValue() else { return false }
         return (type as String) == kIOPSACPowerValue

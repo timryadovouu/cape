@@ -10,14 +10,14 @@ enum Tool: String, CaseIterable, Identifiable {
 
     var name: String {
         switch self {
-        case .colorPicker: return "Pick color"
-        case .cleanKeyboard: return "Clean keyboard"
+        case .colorPicker: return String(localized: "Pick color")
+        case .cleanKeyboard: return String(localized: "Clean keyboard")
         }
     }
     var detail: String {
         switch self {
-        case .colorPicker: return "Copies the hex to the buffer"
-        case .cleanKeyboard: return "Locks keys while you wipe it"
+        case .colorPicker: return String(localized: "Copies the hex to the buffer")
+        case .cleanKeyboard: return String(localized: "Locks keys while you wipe it")
         }
     }
     var icon: String {
@@ -187,7 +187,7 @@ struct ShortcutRecorder: View {
         VStack(alignment: .trailing, spacing: 2) {
             HStack(spacing: 6) {
                 Button { recording ? stop() : start() } label: {
-                    Text(recording ? "Type shortcut…" : shortcut?.display ?? "Record Shortcut")
+                    Text(recording ? String(localized: "Type shortcut…") : shortcut?.display ?? String(localized: "Record Shortcut"))
                         .monospacedDigit()
                         .frame(minWidth: 110)
                 }
@@ -254,9 +254,9 @@ struct ToolsPanel: View {
                       spacing: 8) {
                 tile(.colorPicker)
                 tile(.cleanKeyboard)
-                ToggleTile(name: "Reverse wheel", detail: "Mouse only, trackpad stays",
+                ToggleTile(name: String(localized: "Reverse wheel"), detail: String(localized: "Mouse only, trackpad stays"),
                            icon: "computermouse", isOn: $settings.reverseMouseScroll)
-                ToggleTile(name: "QR in images", detail: "Adds links from screenshots",
+                ToggleTile(name: String(localized: "QR in images"), detail: String(localized: "Adds links from screenshots"),
                            icon: "qrcode.viewfinder", isOn: $settings.scanQRInImages)
             }
             PortsBar(ports: modules.ports) { state.showingPorts = true }

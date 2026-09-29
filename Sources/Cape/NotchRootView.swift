@@ -27,10 +27,19 @@ struct NotchRootView: View {
     static let islandWidth: CGFloat = 40
     static let mediaIslandWidth = islandWidth        // equalizer / pause glyph, left of the camera
     static let claudeIslandWidth = islandWidth       // Claude's dot, right of the camera
+
+    /// The Claude island's width: one or two Clawds fit the usual island; more
+    /// stand side by side in a wider one.
+    static func claudeIslandWidth(clawds: Int) -> CGFloat {
+        clawds <= 2 ? islandWidth : CGFloat(clawds) * 18 + CGFloat(clawds - 1) * 2 + 8
+    }
     private let timerPillW = NotchRootView.timerPillWidth
     private let buttonsW = NotchRootView.pomodoroControlsWidth
     private let eqW = NotchRootView.mediaIslandWidth
-    private let claudeW = NotchRootView.claudeIslandWidth   // the pulsing dot sits centered
+    /// The pulsing dot sits centered; Clawds may need more room.
+    private var claudeW: CGFloat {
+        showClawds ? Self.claudeIslandWidth(clawds: claude.clawds.count) : Self.claudeIslandWidth
+    }
     // The window is shifted up by this much (see NotchController); the island is
     // grown upward by the same amount so black covers the very top rows with no
     // thin gap, while everything below stays put.
@@ -49,10 +58,13 @@ struct NotchRootView: View {
         return timerPillW + (state.pomodoroControls ? buttonsW : 0)
     }
 
-    /// Claude island: coral while ≥1 session is working, amber when one waits for you.
+    /// Claude island: coral while ≥1 session is working, amber when one waits for
+    /// you, Clawd when one finished while you were away.
     private var showClaude: Bool {
-        !state.expanded && settings.trackClaude && (claude.anyWorking || claude.needsYou)
+        !state.expanded && settings.trackClaude && (claude.anyWorking || claude.needsYou || !claude.clawds.isEmpty)
     }
+    private var showBlob: Bool { settings.trackClaude && (claude.anyWorking || claude.needsYou) }
+    private var showClawds: Bool { !showBlob && settings.trackClaude && !claude.clawds.isEmpty }
     private var claudeExt: CGFloat { showClaude ? claudeW : 0 }
 
     /// The sessions list dropped down from the Claude island (on hover).
@@ -220,7 +232,18 @@ struct NotchRootView: View {
                     if playFlash {
                         Image(systemName: "play.fill")
                             .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(Color(red: 0.980, green: 0.514, blue: 0.302))
+                            .foregroundStyle(Color.coral)
+                    } else if settings.musicIslandCover, let art = media.artwork {
+                        // The album cover instead of the equalizer (Settings › Notch).
+                        Image(nsImage: art)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 22, height: 22)
+                            .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                            // Centered on the black island as you see it (it runs up past
+                            // the screen's edge), not just on the part below the edge.
+                            .offset(y: -2)
+                            .transition(.opacity)
                     } else {
                         EqualizerBars(color: Color(red: 0.35, green: 0.85, blue: 0.45))
                             .transition(.opacity)
@@ -228,7 +251,7 @@ struct NotchRootView: View {
                 } else if paused {
                     Image(systemName: "pause.fill")
                         .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(Color(red: 0.980, green: 0.514, blue: 0.302))
+                        .foregroundStyle(Color.coral)
                         .transition(.scale.combined(with: .opacity))
                 }
             }
@@ -245,15 +268,37 @@ struct NotchRootView: View {
             // Center — camera area, drawn empty.
             Color.clear.frame(width: notchW)
 
-            // Claude island (coral) — inner to the timer, shown while a session thinks.
+            // Claude island — inner to the timer: the blob while a session thinks
+            // or waits for you, Clawd once one is done and you haven't looked.
             ZStack {
                 if showClaude {
-                    ClaudeBlob(attention: claude.needsYou)
-                        .frame(width: 11, height: 11)
-                        .transition(.scale.combined(with: .opacity))
+                    if showBlob {
+                        ClaudeBlob(attention: claude.needsYou)
+                            .frame(width: 11, height: 11)
+                            .transition(.scale.combined(with: .opacity))
+                    } else if showClawds {
+                        HStack(spacing: 2) {
+                            ForEach(claude.clawds) { slot in
+                                Clawd(asleep: slot.asleep && !state.claudePeek,   // hovering wakes him
+                                      look: state.clawdLook,
+                                      stretching: pomodoro.isRunning && pomodoro.phase != .work,
+                                      exit: slot.leaving)
+                            }
+                        }
+                        .transition(.opacity)
+                    }
                 }
             }
-            .frame(width: claudeExt)
+            .frame(width: claudeExt, height: notchH)
+            .clipped()            // walking home, he goes behind the camera
+            .contentShape(Rectangle())
+            .onTapGesture {
+                // Clawd: straight to the session that finished (the latest one).
+                guard showClawds,
+                      let done = claude.sessions.first(where: { $0.status == .done && !$0.seen }) else { return }
+                state.claudePeek = false
+                claude.focus(done)
+            }
 
             // Right extension — countdown pill, plus inline controls on hover.
             ZStack {
@@ -294,16 +339,13 @@ struct NotchRootView: View {
     /// Collapsed countdown. Blinks gently while paused so it's clear the timer is
     /// on hold (not counting down).
     private var pomodoroTime: some View {
-        TimelineView(.animation(paused: pomodoro.isRunning)) { tl in
-            let t = tl.date.timeIntervalSinceReferenceDate
-            let blink = pomodoro.isRunning ? 1.0 : 0.45 + 0.45 * (0.5 + 0.5 * sin(t * 3.2))
-            Text(formatTime(pomodoro.timeRemaining))
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(phaseColor(pomodoro.phase))
-                .opacity(blink)
-        }
-        .fixedSize()
+        Text(formatTime(pomodoro.timeRemaining))
+            .font(.system(size: 12, weight: .semibold, design: .rounded))
+            .monospacedDigit()
+            .foregroundStyle(phaseColor(pomodoro.phase))
+            .modifier(Blink(active: !pomodoro.isRunning))
+            .id(pomodoro.isRunning)            // restart the blink on pause
+            .fixedSize()
         .contentShape(Rectangle())
         .onTapGesture { pomodoro.toggle() }   // click the time itself to pause / resume
     }
@@ -329,29 +371,57 @@ struct NotchRootView: View {
     }
 }
 
-/// Three pulsing bars, like the Dynamic Island "now playing" indicator.
+// The always-on animations below (equalizer, Claude blob, bell, paused timer)
+// are SwiftUI repeating animations of scale / opacity / rotation, which the
+// render loop plays by itself. (They used to be TimelineView(.animation), which
+// re-ran the views — and re-laid out the whole notch window — every frame.)
+
+/// Three pulsing bars, like the Dynamic Island "now playing" indicator. Each
+/// bar bounces at its own pace, so together they don't look like a loop.
 struct EqualizerBars: View {
     var color: Color
 
     var body: some View {
-        TimelineView(.animation) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
-            HStack(spacing: 2.5) {
-                ForEach(0..<3, id: \.self) { i in
-                    Capsule()
-                        .fill(color)
-                        .frame(width: 3, height: height(t, i))
-                }
-            }
-            .frame(height: 16)
+        HStack(spacing: 2.5) {
+            Bar(color: color, low: 0.3, high: 1.0, period: 0.42, delay: 0)
+            Bar(color: color, low: 0.25, high: 0.8, period: 0.55, delay: 0.12)
+            Bar(color: color, low: 0.35, high: 0.95, period: 0.47, delay: 0.25)
         }
+        .frame(height: 16)
     }
 
-    private func height(_ t: Double, _ i: Int) -> CGFloat {
-        // Two sines with an irrational frequency ratio → long, organic, non-cyclic.
-        let p = Double(i)
-        let v = 0.5 + 0.30 * sin(t * 5.3 + p * 2.1) + 0.20 * sin(t * 9.7 + p * 4.3)
-        return 4 + min(1, max(0, v)) * 12
+    private struct Bar: View {
+        let color: Color
+        let low: CGFloat, high: CGFloat
+        let period: Double, delay: Double
+        @State private var up = false
+
+        var body: some View {
+            Capsule()
+                .fill(color)
+                .frame(width: 3, height: 16)
+                .scaleEffect(x: 1, y: up ? high : low)
+                .onAppear {
+                    withAnimation(.easeInOut(duration: period).repeatForever(autoreverses: true).delay(delay)) {
+                        up = true
+                    }
+                }
+        }
+    }
+}
+
+/// A gentle 0.9 ↔ 0.45 opacity pulse while `active` (the paused timer).
+private struct Blink: ViewModifier {
+    let active: Bool
+    @State private var dim = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(active ? (dim ? 0.45 : 0.9) : 1)
+            .onAppear {
+                guard active else { return }
+                withAnimation(.easeInOut(duration: 1).repeatForever(autoreverses: true)) { dim = true }
+            }
     }
 }
 
@@ -409,16 +479,26 @@ struct ChargingBadge: View {
 /// Coral bell that rings in short bursts (a quick wiggle every ~2.4 s) — the
 /// task-reminder glyph beside the brow.
 struct RingingBell: View {
+    @State private var angle = 0.0
+    @State private var glow = false
+    private let every = Timer.publish(every: 2.4, on: .main, in: .common).autoconnect()
+
     var body: some View {
-        TimelineView(.animation) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
-            let phase = t.truncatingRemainder(dividingBy: 2.4)
-            let envelope = phase < 0.7 ? 1 - phase / 0.7 : 0
-            Image(systemName: "bell.fill")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(Color.coral)
-                .rotationEffect(.degrees(envelope * 18 * sin(t * 30)), anchor: .top)
-                .shadow(color: Color.coral.opacity(0.6 * envelope), radius: 4)
+        Image(systemName: "bell.fill")
+            .font(.system(size: 11, weight: .bold))
+            .foregroundStyle(Color.coral)
+            .rotationEffect(.degrees(angle), anchor: .top)
+            .shadow(color: Color.coral.opacity(glow ? 0.6 : 0), radius: 4)
+            .onAppear(perform: ring)
+            .onReceive(every) { _ in ring() }
+    }
+
+    /// One burst: a quick wiggle with a glow, then back to rest.
+    private func ring() {
+        withAnimation(.easeOut(duration: 0.1)) { glow = true }
+        withAnimation(.easeInOut(duration: 0.06).repeatCount(9, autoreverses: true)) { angle = 16 }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) {
+            withAnimation(.easeOut(duration: 0.15)) { angle = 0; glow = false }
         }
     }
 }
@@ -430,21 +510,33 @@ struct ClaudeBlob: View {
     static let amber = Color(red: 1.0, green: 0.74, blue: 0.24)
 
     var body: some View {
-        TimelineView(.animation) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
-            if attention {
-                let on = t.truncatingRemainder(dividingBy: 1.2) < 0.8
-                Circle()
-                    .fill(Self.amber)
-                    .opacity(on ? 1 : 0.35)
-                    .shadow(color: Self.amber.opacity(on ? 0.7 : 0), radius: 3)
-            } else {
-                let p = 0.5 + 0.5 * sin(t * 3.0)   // 0...1
-                Circle()
-                    .fill(Color.coral)
-                    .scaleEffect(0.7 + 0.3 * p)
-                    .opacity(0.6 + 0.4 * p)
-            }
+        // Separate views, so switching mode starts the other animation afresh.
+        if attention { AmberBlink() } else { CoralPulse() }
+    }
+
+    private struct CoralPulse: View {
+        @State private var up = false
+        var body: some View {
+            Circle()
+                .fill(Color.coral)
+                .scaleEffect(up ? 1 : 0.7)
+                .opacity(up ? 1 : 0.6)
+                .onAppear {
+                    withAnimation(.easeInOut(duration: 1.05).repeatForever(autoreverses: true)) { up = true }
+                }
+        }
+    }
+
+    private struct AmberBlink: View {
+        @State private var on = true
+        var body: some View {
+            Circle()
+                .fill(ClaudeBlob.amber)
+                .opacity(on ? 1 : 0.35)
+                .shadow(color: ClaudeBlob.amber.opacity(on ? 0.7 : 0), radius: 3)
+                .onAppear {
+                    withAnimation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true)) { on = false }
+                }
         }
     }
 }

@@ -70,7 +70,7 @@ struct BufferPanel: View {
                         .font(.system(size: 12, weight: .medium))
                         .padding(.horizontal, 12)
                         .padding(.vertical, 7)
-                        .background(Color.red.opacity(0.22))
+                        .background(Color.capeRed.opacity(0.22))
                         .foregroundStyle(Color(red: 1, green: 0.55, blue: 0.55))
                         .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
                 }
@@ -105,7 +105,7 @@ struct BufferPanel: View {
         return out
     }
 
-    private static let pinnedTitle = "Pinned"
+    private static let pinnedTitle = String(localized: "Pinned")
 
     private func sectionHeader(_ title: String) -> some View {
         HStack(spacing: 4) {
@@ -126,13 +126,13 @@ struct BufferPanel: View {
     /// "Today" / "Yesterday" / "Mon, 22 Sep".
     static func dayTitle(_ date: Date) -> String {
         let cal = Calendar.current
-        if cal.isDateInToday(date) { return "Today" }
-        if cal.isDateInYesterday(date) { return "Yesterday" }
+        if cal.isDateInToday(date) { return String(localized: "Today") }
+        if cal.isDateInYesterday(date) { return String(localized: "Yesterday") }
         return dayFormatter.string(from: date)
     }
 
     private static let dayFormatter: DateFormatter = {
-        let f = DateFormatter(); f.dateFormat = "EEE, d MMM"; return f
+        let f = DateFormatter(); f.locale = AppLanguage.locale; f.dateFormat = "EEE, d MMM"; return f
     }()
 
     private var micEnabled: Bool {
@@ -151,7 +151,7 @@ struct BufferPanel: View {
     private var voiceTint: Color {
         switch voice.status {
         case .idle: return .white.opacity(0.75)
-        case .recording: return Color(red: 1, green: 0.4, blue: 0.4)
+        case .recording: return .capeRed
         case .transcribing, .downloading, .loading: return .coral
         }
     }
@@ -159,12 +159,12 @@ struct BufferPanel: View {
     private var voiceHelp: String {
         switch voice.status {
         case .idle: return voice.modelDownloaded
-            ? "Dictate — speak, then it's transcribed onto the clipboard"
-            : "Download the dictation model in Settings › Voice first"
-        case .recording: return "Recording — tap to stop"
-        case .transcribing: return "Transcribing…"
-        case .downloading: return "Downloading model… \(Int(voice.downloadProgress * 100))%"
-        case .loading: return "Loading model…"
+            ? String(localized: "Dictate — speak, then it's transcribed onto the clipboard")
+            : String(localized: "Download the dictation model in Settings › Voice first")
+        case .recording: return String(localized: "Recording — tap to stop")
+        case .transcribing: return String(localized: "Transcribing…")
+        case .downloading: return String(localized: "Downloading model… \(Int(voice.downloadProgress * 100))%")
+        case .loading: return String(localized: "Loading model…")
         }
     }
 }
@@ -218,10 +218,10 @@ private struct BufferRow: View {
             if hovering {
                 HStack(spacing: 6) {
                     rowButton(item.isFavorite ? "star.fill" : "star",
-                              help: item.isFavorite ? "Unfavorite" : "Favorite — keep it, pinned on top",
+                              help: item.isFavorite ? String(localized: "Unfavorite") : String(localized: "Favorite — keep it, pinned on top"),
                               gold: item.isFavorite, action: onFavorite)
-                    rowButton("doc.on.doc", help: "Copy", action: onCopy)
-                    rowButton("trash", help: "Delete", danger: true, action: onDelete)
+                    rowButton("doc.on.doc", help: String(localized: "Copy"), action: onCopy)
+                    rowButton("trash", help: String(localized: "Delete"), danger: true, action: onDelete)
                 }
             } else if item.isFavorite {
                 // At rest, still show which items are starred.
@@ -254,7 +254,7 @@ private struct BufferRow: View {
                 .background(
                     RoundedRectangle(cornerRadius: 7, style: .continuous)
                         .fill(gold ? Self.gold.opacity(0.18)
-                              : danger ? Color.red.opacity(0.18)
+                              : danger ? Color.capeRed.opacity(0.18)
                               : Color.white.opacity(0.13))
                 )
         }
@@ -301,10 +301,10 @@ private struct BufferRow: View {
     private var subtitle: String {
         let kind: String
         switch item.kind {
-        case .text: kind = "Text"
-        case .image: kind = "Image · \(item.name)"
+        case .text: kind = String(localized: "Text")
+        case .image: kind = String(localized: "Image · \(item.name)")
         case .file: kind = item.url.pathExtension.uppercased().isEmpty
-            ? "File" : item.url.pathExtension.uppercased()
+            ? String(localized: "File") : item.url.pathExtension.uppercased()
         }
         return "\(Self.timeFormatter.string(from: item.date)) · \(kind)"
     }

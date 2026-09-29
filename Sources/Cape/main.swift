@@ -15,6 +15,9 @@ if CommandLine.arguments.dropFirst().first == "permission" {
     exit(0)
 }
 
+// The interface language (Settings › General) — set before anything is localized.
+AppLanguage.applyAtLaunch()
+
 // Dev tool: README screenshots from demo data (see Screenshots.swift). Refuses
 // to run against the real data folder.
 if Screenshots.outputDir != nil {

@@ -26,6 +26,10 @@ final class NotchState: ObservableObject {
     @Published var showingPorts = false
     /// The Claude sessions list is dropped down from the Claude island (hover).
     @Published var claudePeek = false
+    /// Where Clawd looks: -1 left, 0 ahead, 1 right — toward the cursor.
+    @Published var clawdLook = 0
+    /// The welcome tour's current step, while it's showing (keeps the notch open).
+    @Published var tourStep: Int?
     /// The music island was clicked (play / pause) — don't open Media from that hover.
     var mediaIslandClicked = false
 
@@ -123,12 +127,12 @@ final class NotchState: ObservableObject {
     /// the command and how long it took.
     func flashDone(ok: Bool, command: String, seconds: Int) {
         let name = command.count > 26 ? String(command.prefix(25)) + "…" : command
-        let time = seconds < 60 ? "\(seconds)s" : seconds < 3600 ? "\(seconds / 60)m \(seconds % 60)s"
-            : "\(seconds / 3600)h \(seconds % 3600 / 60)m"
+        let time = (60..<3600).contains(seconds) ? String(localized: "\(seconds / 60)m \(seconds % 60)s")
+            : formatDuration(seconds)
         let text = [name, seconds > 0 ? time : ""].filter { !$0.isEmpty }.joined(separator: " · ")
         show(NotchAlert(icon: ok ? "checkmark.circle.fill" : "xmark.circle.fill",
-                        text: text.isEmpty ? (ok ? "Done" : "Failed") : text,
-                        color: ok ? Color(red: 0.3, green: 0.85, blue: 0.45) : Color(red: 1, green: 0.42, blue: 0.42)),
+                        text: text.isEmpty ? (ok ? String(localized: "Done") : String(localized: "Failed")) : text,
+                        color: ok ? Color(red: 0.3, green: 0.85, blue: 0.45) : .capeRed),
              duration: 4)
     }
 
@@ -137,11 +141,11 @@ final class NotchState: ObservableObject {
         let alert: NotchAlert
         switch phase {
         case .work:
-            alert = NotchAlert(icon: "play.fill", text: "Focus", color: phaseColor(.work))
+            alert = NotchAlert(icon: "play.fill", text: String(localized: "Focus"), color: phaseColor(.work))
         case .shortBreak:
-            alert = NotchAlert(icon: "cup.and.saucer.fill", text: "Break", color: phaseColor(.shortBreak))
+            alert = NotchAlert(icon: "cup.and.saucer.fill", text: String(localized: "Break"), color: phaseColor(.shortBreak))
         case .longBreak:
-            alert = NotchAlert(icon: "cup.and.saucer.fill", text: "Long Break", color: phaseColor(.longBreak))
+            alert = NotchAlert(icon: "cup.and.saucer.fill", text: String(localized: "Long Break"), color: phaseColor(.longBreak))
         }
         show(alert, duration: 2.8)
     }

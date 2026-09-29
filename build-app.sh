@@ -36,6 +36,12 @@ if [ -f "Resources/AppIcon.png" ]; then
   rm -rf "$(dirname "$ICONSET")"
 fi
 
+# Interface translations (Resources/Localization/<lang>.lproj): SwiftUI and
+# String(localized:) read them from the app bundle; English is the source.
+if [ -d "Resources/Localization" ]; then
+  cp -R Resources/Localization/*.lproj "$APP/Contents/Resources/"
+fi
+
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -51,6 +57,9 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundlePackageType</key>      <string>APPL</string>
     <key>LSMinimumSystemVersion</key>   <string>13.0</string>
     <key>LSUIElement</key>              <true/>
+    <key>CFBundleDevelopmentRegion</key><string>en</string>
+    <key>CFBundleLocalizations</key>
+    <array><string>en</string><string>ru</string></array>
     <key>NSAppleEventsUsageDescription</key>
     <string>Cape controls Spotify playback from the notch.</string>
     <key>NSMicrophoneUsageDescription</key>

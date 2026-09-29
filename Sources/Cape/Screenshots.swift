@@ -111,14 +111,35 @@ enum Screenshots {
     private static func seedDemoLive(_ modules: AppModules) {
         let now = Date()
         modules.ports.showDemo([
-            .init(port: 3000, pid: 48211, name: "node", project: "web", started: now.addingTimeInterval(-8100),
+            .init(ports: [3000], pid: 48211, name: "node", project: "web", started: now.addingTimeInterval(-8100),
                   exposed: false, isDev: true),
-            .init(port: 5173, pid: 48377, name: "node", project: "docs", started: now.addingTimeInterval(-2460),
-                  exposed: false, isDev: true),
-            .init(port: 8000, pid: 50112, name: "Python", project: "api", started: now.addingTimeInterval(-640),
+            .init(ports: [8000], pid: 50112, name: "Python", project: "api", started: now.addingTimeInterval(-640),
                   exposed: true, isDev: true),
+            .init(ports: [9000, 9001, 9002, 9003, 9004, 52055], pid: 50480, name: "python3.12",
+                  project: "notebooks", started: now.addingTimeInterval(-4980), exposed: false, isDev: true,
+                  kind: .jupyterKernel),
+        ])
+        // Battery use for the demo's apps (as a share of this Mac's full charge).
+        let charge = EnergyMonitor.capacity ?? 200_000
+        func used(_ name: String, _ pct: Double) -> EnergyMonitor.AppEnergy {
+            EnergyMonitor.AppEnergy(name: name, all: charge * pct / 100, battery: charge * pct / 100,
+                                    screenAll: charge * pct * 0.85 / 100, screenBattery: charge * pct * 0.85 / 100)
+        }
+        modules.energy.showDemo([
+            "/Applications/Safari.app": used("Safari", 6.2),
+            "/System/Applications/Notes.app": used("Notes", 1.1),
+            "/System/Applications/Music.app": used("Music", 2.4),
+            "/System/Applications/Utilities/Terminal.app": used("Terminal", 0.8),
+            "/System/Applications/Messages.app": used("Messages", 0.9),
+            "/System/Applications/Mail.app": used("Mail", 0.6),
+            "/System/Applications/Books.app": used("Books", 0.3),
+            EnergyMonitor.systemKey: used("macOS", 1.7),
         ])
         modules.settings.trackClaude = true
+        // The finished one you haven't looked at yet — Clawd in its row.
+        var blog = ClaudeSession(id: "demo-blog", project: "blog", status: .done, since: now.addingTimeInterval(-360),
+                                 lastEvent: now, prompt: "fix the RSS feed dates", app: nil, title: "RSS feed dates")
+        blog.seen = false
         modules.claude.showDemo([
             ClaudeSession(id: "demo-api", project: "api", status: .permission, since: now.addingTimeInterval(-20),
                           lastEvent: now, prompt: "add a migration for the orders table", app: nil,
@@ -126,8 +147,7 @@ enum Screenshots {
             ClaudeSession(id: "demo-cape", project: "cape", status: .working, since: now.addingTimeInterval(-134),
                           lastEvent: now, prompt: "make the sessions list drop from the notch", app: nil,
                           title: "Sessions in the notch"),
-            ClaudeSession(id: "demo-blog", project: "blog", status: .done, since: now.addingTimeInterval(-360),
-                          lastEvent: now, prompt: "fix the RSS feed dates", app: nil, title: "RSS feed dates"),
+            blog,
         ], [
             ClaudePermission(id: "demo-request", sessionID: "demo-api", tool: "Bash",
                              detail: "npm run db:migrate", expires: now.addingTimeInterval(52)),
@@ -135,12 +155,13 @@ enum Screenshots {
     }
 
     /// The collapsed brow with the Claude sessions list dropped down from it.
-    private static func captureClaudePeek(_ modules: AppModules, to out: URL, then done: @escaping () -> Void) {
+    private static func captureClaudePeek(_ modules: AppModules, to out: URL, name: String = "claude",
+                                          open: Bool = true, then done: @escaping () -> Void) {
         let state = NotchState(settings: modules.settings)
-        state.claudePeek = true
+        state.claudePeek = open
         let metrics = NotchMetrics.current()
         let peekH = ClaudePeekPanel.height(sessions: modules.claude.sessions, permissions: modules.claude.permissions)
-        let size = NSSize(width: metrics.notchWidth + 2 * NotchRootView.islandWidth + 60,
+        let size = NSSize(width: metrics.notchWidth + 2 * NotchRootView.islandWidth + (name == "claude" ? 60 : 140),
                           height: metrics.notchHeight + NotchRootView.topOvershoot + peekH + 24)
         let root = NotchRootView(state: state, pomodoro: modules.pomodoro, media: modules.media,
                                  claude: modules.claude, settings: modules.settings, todo: modules.todo,
@@ -163,7 +184,7 @@ enum Screenshots {
                                        colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
             rep.size = size
             host.cacheDisplay(in: host.bounds, to: rep)
-            let url = out.appendingPathComponent("claude.png")
+            let url = out.appendingPathComponent("\(name).png")
             try? rep.representation(using: .png, properties: [:])?.write(to: url)
             print("wrote \(url.path)")
             done()
@@ -185,12 +206,7 @@ enum Screenshots {
                                   updater: modules.updater, modules: modules,
                                   notchWidth: metrics.notchWidth,
                                   topInset: metrics.notchHeight + NotchRootView.topOvershoot)
-            .frame(width: size.width, height: size.height, alignment: .top)
-            .background(Color.black)
-            .clipShape(UnevenRoundedRectangle(cornerRadii: .init(bottomLeading: 28, bottomTrailing: 28),
-                                              style: .continuous))
-            .environment(\.colorScheme, .dark)
-        let host = NSHostingView(rootView: panel)
+        let host = NSHostingView(rootView: ShotPanel(state: state, panel: panel))
         host.frame = NSRect(origin: .zero, size: size)
         let w = NSWindow(contentRect: host.frame, styleMask: .borderless, backing: .buffered, defer: false)
         w.isOpaque = false
@@ -208,13 +224,57 @@ enum Screenshots {
             ("screenTime", { state.selectModule(.screenTime) }),
             ("tools", { state.showingTools = true }),
             ("ports", { state.showingPorts = true }),
+            ("screenTimeEnergy", {
+                state.showingPorts = false
+                state.showingTools = false
+                modules.settings.screenTimeByEnergy = true
+                state.selectModule(.screenTime)
+            }),
+            // The welcome tour opens the panel tall.
+            ("tour", {
+                state.showingPorts = false
+                state.tall = true
+                Tour.show(0, state: state, settings: modules.settings)
+            }),
+            ("tourBuffer", {
+                let steps = Tour.steps(modules.settings)
+                Tour.show(steps.firstIndex(of: .module(.buffer)) ?? 1, state: state, settings: modules.settings)
+            }),
+            ("tourIslands", { Tour.show(Tour.steps(modules.settings).count - 2, state: state, settings: modules.settings) }),
+            ("tourSetup", { Tour.show(Tour.steps(modules.settings).count - 1, state: state, settings: modules.settings) }),
         ]
         func shoot(_ i: Int) {
             guard i < shots.count else {
-                captureClaudePeek(modules, to: out) { NSApp.terminate(nil) }
+                captureClaudePeek(modules, to: out) {
+                    // Then Clawd: every session done while you were away.
+                    let now = Date()
+                    var blog = ClaudeSession(id: "demo-blog", project: "blog", status: .done,
+                                             since: now.addingTimeInterval(-1260), lastEvent: now,
+                                             prompt: "fix the RSS feed dates", app: nil, title: "RSS feed dates")
+                    blog.seen = false
+                    var cape = ClaudeSession(id: "demo-cape", project: "cape", status: .done,
+                                             since: now.addingTimeInterval(-300), lastEvent: now,
+                                             prompt: "make the sessions list drop from the notch", app: nil,
+                                             title: "Sessions in the notch")
+                    cape.seen = false
+                    var api = ClaudeSession(id: "demo-api", project: "api", status: .done,
+                                            since: now.addingTimeInterval(-40), lastEvent: now,
+                                            prompt: "add a migration for the orders table", app: nil,
+                                            title: "Orders migration")
+                    api.seen = false
+                    modules.claude.showDemo([api, cape, blog], [])
+                    captureClaudePeek(modules, to: out, name: "clawd", open: false) {
+                        captureClaudePeek(modules, to: out, name: "clawdList") { NSApp.terminate(nil) }
+                    }
+                }
                 return
             }
             shots[i].1()
+            // The panel's height follows `tall` (the tour opens it tall).
+            let size = NSSize(width: NotchRootView.panelWidth,
+                              height: NotchRootView.expandedHeight(state.tall) + NotchRootView.topOvershoot)
+            w.setContentSize(size)
+            host.frame = NSRect(origin: .zero, size: size)
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(size.width * 2),
                                            pixelsHigh: Int(size.height * 2), bitsPerSample: 8,
@@ -230,5 +290,22 @@ enum Screenshots {
         }
         // Let the media poll, the cover art and the CPU/RAM readings arrive first.
         DispatchQueue.main.asyncAfter(deadline: .now() + 4) { shoot(0) }
+    }
+}
+
+/// The expanded panel as the screenshots show it: black, rounded at the bottom,
+/// as tall as the notch would open it.
+private struct ShotPanel: View {
+    @ObservedObject var state: NotchState
+    let panel: ExpandedPanel
+
+    var body: some View {
+        panel
+            .frame(width: NotchRootView.panelWidth,
+                   height: NotchRootView.expandedHeight(state.tall) + NotchRootView.topOvershoot, alignment: .top)
+            .background(Color.black)
+            .clipShape(UnevenRoundedRectangle(cornerRadii: .init(bottomLeading: 28, bottomTrailing: 28),
+                                              style: .continuous))
+            .environment(\.colorScheme, .dark)
     }
 }

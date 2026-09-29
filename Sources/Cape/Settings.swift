@@ -14,6 +14,8 @@ final class Settings: ObservableObject {
     @Published var recallMinutes: Int { didSet { d.set(recallMinutes, forKey: "recallMinutes") } }
     @Published var defaultModuleRaw: String { didSet { d.set(defaultModuleRaw, forKey: "defaultModuleRaw") } }
     @Published var openMediaOnHover: Bool { didSet { d.set(openMediaOnHover, forKey: "openMediaOnHover") } }
+    /// What the music island shows while playing: the equalizer or the cover.
+    @Published var musicIslandCover: Bool { didSet { d.set(musicIslandCover, forKey: "musicIslandCover") } }
     @Published var showCharging: Bool { didSet { d.set(showCharging, forKey: "showCharging") } }
 
     // MARK: Tools — global shortcut per tool (Tool.rawValue → combo)
@@ -58,9 +60,15 @@ final class Settings: ObservableObject {
     // MARK: Screen Time
     @Published var screenTimeRetentionDays: Int { didSet { d.set(screenTimeRetentionDays, forKey: "screenTimeRetentionDays") } }
     @Published var screenTimeAppCount: Int { didSet { d.set(screenTimeAppCount, forKey: "screenTimeAppCount") } }
+    /// Battery use counts only time off the charger (else: all the time).
+    @Published var energyOnBatteryOnly: Bool { didSet { d.set(energyOnBatteryOnly, forKey: "energyOnBatteryOnly") } }
+    /// Screen Time lists by battery use instead of time.
+    @Published var screenTimeByEnergy: Bool { didSet { d.set(screenTimeByEnergy, forKey: "screenTimeByEnergy") } }
 
     // MARK: General
     @Published var launchAtLogin: Bool { didSet { applyLoginItem() } }
+    /// Interface language (`AppLanguage`); applied at the next launch.
+    @Published var appLanguage: String { didSet { d.set(appLanguage, forKey: AppLanguage.key) } }
     @Published var trackClaude: Bool { didSet { d.set(trackClaude, forKey: "trackClaude") } }
 
     // MARK: Claude
@@ -70,6 +78,12 @@ final class Settings: ObservableObject {
     @Published var claudeSoundMuteWhenFront: Bool { didSet { d.set(claudeSoundMuteWhenFront, forKey: "claudeSoundMuteWhenFront") } }
     @Published var claudeApprovals: Bool { didSet { d.set(claudeApprovals, forKey: "claudeApprovals") } }
     @Published var claudeApprovalTimeout: Int { didSet { d.set(claudeApprovalTimeout, forKey: "claudeApprovalTimeout") } }
+    /// Clawd sits in the Claude island when a session finished while you were away.
+    @Published var claudeMascot: Bool { didSet { d.set(claudeMascot, forKey: "claudeMascot") } }
+    /// How long Clawd waits for you to look before leaving, in minutes.
+    @Published var claudeMascotMinutes: Int { didSet { d.set(claudeMascotMinutes, forKey: "claudeMascotMinutes") } }
+    /// Clawd dozes off when a finished session has waited this long, in minutes.
+    @Published var claudeMascotSleepMinutes: Int { didSet { d.set(claudeMascotSleepMinutes, forKey: "claudeMascotSleepMinutes") } }
 
     private let d = UserDefaults.standard
 
@@ -82,6 +96,7 @@ final class Settings: ObservableObject {
         recallMinutes = d.object(forKey: "recallMinutes") as? Int ?? 30
         defaultModuleRaw = d.string(forKey: "defaultModuleRaw") ?? Module.tasks.rawValue
         openMediaOnHover = d.object(forKey: "openMediaOnHover") as? Bool ?? true
+        musicIslandCover = d.object(forKey: "musicIslandCover") as? Bool ?? false
         showCharging = d.object(forKey: "showCharging") as? Bool ?? true
         toolShortcuts = d.data(forKey: "toolShortcuts")
             .flatMap { try? JSONDecoder().decode([String: Shortcut].self, from: $0) } ?? [:]
@@ -116,7 +131,10 @@ final class Settings: ObservableObject {
 
         screenTimeRetentionDays = d.object(forKey: "screenTimeRetentionDays") as? Int ?? 365
         screenTimeAppCount = d.object(forKey: "screenTimeAppCount") as? Int ?? 8
+        energyOnBatteryOnly = d.object(forKey: "energyOnBatteryOnly") as? Bool ?? true
+        screenTimeByEnergy = d.object(forKey: "screenTimeByEnergy") as? Bool ?? false
 
+        appLanguage = AppLanguage.saved.rawValue
         trackClaude = d.object(forKey: "trackClaude") as? Bool ?? false
         claudeSound = d.object(forKey: "claudeSound") as? Bool ?? false
         claudeSoundName = d.string(forKey: "claudeSoundName") ?? "Glass"
@@ -124,6 +142,9 @@ final class Settings: ObservableObject {
         claudeSoundMuteWhenFront = d.object(forKey: "claudeSoundMuteWhenFront") as? Bool ?? true
         claudeApprovals = d.object(forKey: "claudeApprovals") as? Bool ?? true
         claudeApprovalTimeout = d.object(forKey: "claudeApprovalTimeout") as? Int ?? 60
+        claudeMascot = d.object(forKey: "claudeMascot") as? Bool ?? true
+        claudeMascotMinutes = d.object(forKey: "claudeMascotMinutes") as? Int ?? 60
+        claudeMascotSleepMinutes = d.object(forKey: "claudeMascotSleepMinutes") as? Int ?? 5
         launchAtLogin = (SMAppService.mainApp.status == .enabled)
     }
 

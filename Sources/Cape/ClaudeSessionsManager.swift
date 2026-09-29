@@ -1,5 +1,6 @@
 import Foundation
 import AppKit
+import SwiftUI
 
 /// A Claude Code session, as seen through its hook events.
 struct ClaudeSession: Identifiable, Equatable {
@@ -19,8 +20,22 @@ struct ClaudeSession: Identifiable, Equatable {
     var app: String?          // bundle id of the app it runs in (iTerm2, Claude, …)
     var title: String?        // the Claude app's name for the session (Code tab only)
     var transcript: String?   // the conversation file Claude keeps writing while it works
+    /// A finished turn you've looked at: opened from the list, switched to its
+    /// app, or it finished while that app was in front. Until then Clawd waits.
+    var seen = true
 
     var needsYou: Bool { status == .permission || status == .asking || status == .waiting }
+}
+
+/// How Clawd leaves: home, behind the camera (he waited long enough, or the
+/// app quit), or with a happy hop (you came to look).
+enum ClawdExit: Equatable { case home, happy }
+
+/// One Clawd in the island — for one finished session you haven't looked at.
+struct ClawdSlot: Identifiable, Equatable {
+    let id: String            // the session's
+    var asleep = false        // waited past Settings › Claude's "falls asleep after"
+    var leaving: ClawdExit?   // on his way out (kept a moment for the animation)
 }
 
 /// A tool call waiting for Allow / Deny (a file in ~/.claude/cape/pending,
@@ -44,6 +59,12 @@ final class ClaudeSessionsManager: ObservableObject {
     /// Sessions active in the last few hours, most urgent first.
     @Published private(set) var sessions: [ClaudeSession] = []
     @Published private(set) var permissions: [ClaudePermission] = []
+    /// A Clawd for each session that finished while you were away (up to four,
+    /// oldest first), plus the ones just leaving.
+    @Published private(set) var clawds: [ClawdSlot] = []
+    static let maxClawds = 4
+    /// Sessions you came to look at — their Clawd leaves with a happy hop.
+    private var happyExits: Set<String> = []
 
     /// When the exhausted/near-limit usage window frees up. nil when every window
     /// is below the configured threshold (Claude is available). Fed by
@@ -69,6 +90,7 @@ final class ClaudeSessionsManager: ObservableObject {
     /// once, when you open it from the list).
     private let doneFor: TimeInterval = 15 * 60
     private var lastHeartbeat = Date.distantPast
+    private var workspaceObservers: [NSObjectProtocol] = []
     private var offset: UInt64 = 0
     private var timer: Timer?
 
@@ -97,11 +119,56 @@ final class ClaudeSessionsManager: ObservableObject {
         let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in self?.poll() }
         RunLoop.main.add(t, forMode: .common)
         timer = t
+        // Switching to the app a session runs in counts as having looked at it;
+        // quitting that app ends its sessions.
+        let center = NSWorkspace.shared.notificationCenter
+        workspaceObservers = [
+            center.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) {
+                [weak self] note in self?.appActivated(Self.bundleID(note))
+            },
+            center.addObserver(forName: NSWorkspace.didTerminateApplicationNotification, object: nil, queue: .main) {
+                [weak self] note in self?.appQuit(Self.bundleID(note))
+            },
+        ]
         // Bring the hooks up to date (new events, a moved app) when tracking is on.
         DispatchQueue.main.async { [weak self] in
             guard let self, settings.trackClaude, self.hooksNeedUpdate() else { return }
             self.installHooks()
         }
+    }
+
+    deinit {
+        workspaceObservers.forEach(NSWorkspace.shared.notificationCenter.removeObserver)
+    }
+
+    private static func bundleID(_ note: Notification) -> String? {
+        (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.bundleIdentifier
+    }
+
+    /// Switching to a session's app counts as looking at it — after a moment:
+    /// to quit an app or close its window you switch to it first, and then Clawd
+    /// should go home, not hop for joy. So if the session ends or the app quits
+    /// within that moment, he walks home; otherwise the happy hop.
+    private func appActivated(_ id: String?) {
+        guard let id, byID.values.contains(where: { $0.status == .done && !$0.seen && $0.app == id }) else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+            guard let self, !NSRunningApplication.runningApplications(withBundleIdentifier: id).isEmpty,
+                  NSWorkspace.shared.frontmostApplication?.bundleIdentifier == id else { return }
+            var changed = false
+            for (key, s) in self.byID where s.status == .done && !s.seen && s.app == id {
+                self.byID[key]?.seen = true
+                self.happyExits.insert(key)
+                changed = true
+            }
+            if changed { self.recompute() }
+        }
+    }
+
+    private func appQuit(_ id: String?) {
+        guard let id else { return }
+        let before = byID.count
+        byID = byID.filter { $0.value.app != id }
+        if byID.count != before { recompute() }
     }
 
     // MARK: - Reading events
@@ -113,8 +180,14 @@ final class ClaudeSessionsManager: ObservableObject {
             if end < offset { offset = 0; byID = [:] }   // rotated/truncated
             if end > offset {
                 try? handle.seek(toOffset: offset)
-                let data = handle.readDataToEndOfFile()
-                offset = end
+                var data = handle.readDataToEndOfFile()
+                // Whole lines only: the hook writes a line in pieces (the wrapper,
+                // the event, the closing brace), and a line caught half-written
+                // would be lost — a lost Stop left the island "thinking". The rest
+                // is read next time, once it's complete.
+                let cut = data.lastIndex(of: UInt8(ascii: "\n")).map { $0 - data.startIndex + 1 } ?? 0
+                data = data.prefix(cut)
+                offset += UInt64(cut)
                 // A hook input that ended in a newline pushed the wrapper's closing
                 // "}" onto a line of its own — glue such a line back on.
                 var previous: String?
@@ -142,6 +215,9 @@ final class ClaudeSessionsManager: ObservableObject {
         permissions = requests
         needsYou = demo.contains(where: \.needsYou)
         anyWorking = demo.contains { $0.status == .working }
+        let sleepAfter = TimeInterval(settings.claudeMascotSleepMinutes * 60)
+        clawds = demo.filter { $0.status == .done && !$0.seen }.sorted { $0.since < $1.since }
+            .map { ClawdSlot(id: $0.id, asleep: Date().timeIntervalSince($0.since) >= sleepAfter) }
     }
 
     /// After the launch replay: the log has no timestamps, so date each session
@@ -231,13 +307,20 @@ final class ClaudeSessionsManager: ObservableObject {
 
         switch event {
         case "UserPromptSubmit":
+            if s.status == .done && !s.seen { happyExits.insert(id) }     // back at it: you saw it
             set(.working)
+            s.seen = true
             s.since = now
             if let prompt = obj["prompt"] as? String {
                 let line = prompt.split(whereSeparator: \.isNewline).first.map(String.init) ?? prompt
                 s.prompt = line.trimmingCharacters(in: .whitespaces)
             }
         case "Stop":
+            // Finished in front of you (its app is frontmost), or long ago (the
+            // launch replay): nothing to wait for. Otherwise Clawd waits.
+            if s.status != .done {
+                s.seen = replaying || s.app == NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+            }
             set(.done)
         case "PermissionRequest":
             let tool = obj["tool_name"] as? String ?? ""
@@ -321,6 +404,7 @@ final class ClaudeSessionsManager: ObservableObject {
         // Opening a finished session means you've seen it: off the list (it comes
         // back with its next event).
         if session.status == .done {
+            if !session.seen { happyExits.insert(session.id) }
             byID[session.id] = nil
             recompute()
         }
@@ -355,15 +439,22 @@ final class ClaudeSessionsManager: ObservableObject {
 
     private func recompute() {
         let now = Date()
+        // A finished session you've seen leaves after `doneFor`; one you haven't
+        // stays with Clawd for as long as Settings › Claude says, then leaves too.
+        let mascot = settings.claudeMascot
+        let waitFor = TimeInterval(settings.claudeMascotMinutes * 60)
         byID = byID.filter {
-            now.timeIntervalSince($0.value.lastEvent) < staleAfter
-                && !($0.value.status == .done && now.timeIntervalSince($0.value.since) > doneFor)
-        }
+            let s = $0.value
+            guard now.timeIntervalSince(s.lastEvent) < staleAfter else { return false }
+            guard s.status == .done else { return true }
+            return now.timeIntervalSince(s.since) < (mascot && !s.seen ? waitFor : doneFor)
+        }       // (a Clawd whose session left without being looked at goes home)
         // A "working" session that went silent — no event and no transcript write
         // for a while (crashed, never sent Stop) — stops counting.
         for (id, s) in byID where s.status == .working && now.timeIntervalSince(s.lastEvent) > workingTimeout {
             if let active = activity(s), now.timeIntervalSince(active) < workingTimeout { continue }
             byID[id]?.status = .done
+            byID[id]?.seen = true       // not a real finish — nothing for Clawd
         }
         let rank: [ClaudeSession.Status: Int] = [.permission: 0, .asking: 1, .waiting: 2, .working: 3, .done: 4]
         let list = byID.values.sorted {
@@ -372,12 +463,52 @@ final class ClaudeSessionsManager: ObservableObject {
         if list != sessions { sessions = list }
         let attention = list.contains(where: \.needsYou)
         if attention != needsYou { needsYou = attention }
+        updateClawds(list, now: now)
         let working = list.contains { $0.status == .working }
         if working != anyWorking {
             // The coral "thinking" island just went away — and not because it now waits for you.
             let stopped = anyWorking && !working && !attention
             anyWorking = working
             if stopped { playDoneSound() }
+        }
+    }
+
+    /// One Clawd per unseen finished session, in the order they finished. One
+    /// that's no longer due stays a moment, marked leaving, for his exit.
+    private func updateClawds(_ list: [ClaudeSession], now: Date) {
+        guard settings.trackClaude, settings.claudeMascot else {
+            if !clawds.isEmpty { clawds = [] }
+            happyExits = []
+            return
+        }
+        let sleepAfter = TimeInterval(settings.claudeMascotSleepMinutes * 60)
+        let unseen = list.filter { $0.status == .done && !$0.seen }
+            .sorted { $0.since < $1.since }
+            .suffix(Self.maxClawds)
+        func slot(_ s: ClaudeSession) -> ClawdSlot {
+            ClawdSlot(id: s.id, asleep: now.timeIntervalSince(s.since) >= sleepAfter)
+        }
+        var next = clawds.map { old -> ClawdSlot in
+            if let s = unseen.first(where: { $0.id == old.id }) { return slot(s) }
+            var gone = old
+            if gone.leaving == nil {
+                let exit: ClawdExit = happyExits.remove(old.id) != nil ? .happy : .home
+                gone.leaving = exit
+                DispatchQueue.main.asyncAfter(deadline: .now() + (exit == .happy ? 0.8 : 2.9)) { [weak self] in
+                    self?.clawds.removeAll { $0.id == old.id && $0.leaving != nil }
+                }
+            }
+            return gone
+        }
+        for s in unseen where !next.contains(where: { $0.id == s.id }) { next.append(slot(s)) }
+        // Going home is to the left, behind the camera: step to the front of the
+        // line first, so he doesn't walk through the others.
+        let home = next.filter { $0.leaving == .home }
+        next = home + next.filter { $0.leaving != .home }
+        happyExits = happyExits.filter { id in next.contains { $0.id == id } || byID[id] != nil }
+        if next != clawds {
+            let reordered = next.map(\.id) != clawds.map(\.id)
+            withAnimation(reordered ? .easeInOut(duration: 0.35) : nil) { clawds = next }
         }
     }
 

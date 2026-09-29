@@ -1,0 +1,3 @@
+/* Cape — Russian texts for macOS permission prompts. */
+"NSAppleEventsUsageDescription" = "Cape управляет воспроизведением Spotify из чёлки.";
+"NSMicrophoneUsageDescription" = "Cape записывает голос для диктовки прямо на устройстве — текст попадает в буфер.";

@@ -4,6 +4,61 @@ import AppKit
 extension Color {
     /// The app's coral accent (#FA834D) — used for Claude, the copy flash, etc.
     static let coral = Color(red: 0.980, green: 0.514, blue: 0.302)
+    /// The one red: focus time, Quit, CPU, delete / stop.
+    static let capeRed = Color(red: 1.0, green: 0.35, blue: 0.35)
+}
+
+/// The interface language — English (the default) or Russian, set in
+/// Settings › General. macOS reads an app's language once, at launch, so
+/// `applyAtLaunch()` runs first thing and a change needs a relaunch.
+enum AppLanguage: String, CaseIterable, Identifiable {
+    case en, ru
+    var id: String { rawValue }
+
+    /// Each in its own language, so it's findable whatever the current one is.
+    var label: String {
+        switch self {
+        case .en: return "English"
+        case .ru: return "Русский"
+        }
+    }
+
+    static let key = "appLanguage"
+
+    /// The saved choice (anything else, like an old "system", reads as English).
+    static var saved: AppLanguage {
+        AppLanguage(rawValue: UserDefaults.standard.string(forKey: key) ?? "") ?? .en
+    }
+
+    /// Point macOS's per-app language list at the saved choice — called before
+    /// anything is localized, so it holds for this launch whatever the system
+    /// language is.
+    static func applyAtLaunch() {
+        UserDefaults.standard.set([saved.rawValue], forKey: "AppleLanguages")
+        launched = saved
+    }
+
+    /// The choice this launch runs in (a different one needs a relaunch).
+    static private(set) var launched: AppLanguage = .en
+
+    /// The language the interface is actually in right now.
+    static var running: String { Bundle.main.preferredLocalizations.first ?? "en" }
+
+    /// For dates and weekdays — formatters follow the system's region, not the
+    /// app's language, so they get it spelled out.
+    static var locale: Locale { Locale(identifier: running) }
+
+    /// Relaunch Cape (after a language change): wait for this process to exit,
+    /// then open the app again.
+    static func relaunch() {
+        let pid = ProcessInfo.processInfo.processIdentifier
+        let sh = Process()
+        sh.executableURL = URL(fileURLWithPath: "/bin/sh")
+        sh.arguments = ["-c", "while kill -0 \(pid) 2>/dev/null; do sleep 0.2; done; /usr/bin/open \"$0\"",
+                        Bundle.main.bundlePath]
+        try? sh.run()
+        NSApp.terminate(nil)
+    }
 }
 
 /// A small coral on/off switch for the dark notch (the system switch looks
@@ -79,7 +134,7 @@ func formatTime(_ seconds: TimeInterval) -> String {
 
 func phaseColor(_ phase: PomodoroPhase) -> Color {
     switch phase {
-    case .work: return Color(red: 1.0, green: 0.35, blue: 0.35)
+    case .work: return .capeRed
     case .shortBreak: return Color(red: 0.3, green: 0.85, blue: 0.45)
     case .longBreak: return Color(red: 0.35, green: 0.6, blue: 1.0)
     }

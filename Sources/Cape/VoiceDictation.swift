@@ -288,19 +288,19 @@ final class VoiceDictation: ObservableObject, @unchecked Sendable {
 /// Bigger = more accurate and more RAM. Downloaded once on first use.
 enum VoiceModels {
     static let options: [(id: String, label: String)] = [
-        ("tiny", "Tiny · ~75 MB · fastest, rough"),
-        ("base", "Base · ~145 MB · light"),
-        ("small", "Small · ~465 MB · balanced"),
-        ("large-v3-v20240930_626MB", "Large v3 Turbo · ~626 MB · best (recommended)"),
+        ("tiny", String(localized: "Tiny · ~75 MB · fastest, rough")),
+        ("base", String(localized: "Base · ~145 MB · light")),
+        ("small", String(localized: "Small · ~465 MB · balanced")),
+        ("large-v3-v20240930_626MB", String(localized: "Large v3 Turbo · ~626 MB · best (recommended)")),
     ]
     static let defaultModel = "large-v3-v20240930_626MB"
 
     /// Spoken-language choices. "auto" lets Whisper detect it (which can misread
     /// some languages — e.g. Russian — so an explicit pick is the reliable fix).
     static let languages: [(id: String, label: String)] = [
-        ("auto", "Auto-detect"),
-        ("en", "English"), ("ru", "Russian"), ("de", "German"), ("es", "Spanish"),
-        ("fr", "French"), ("ja", "Japanese"), ("ko", "Korean"), ("zh", "Chinese"),
+        ("auto", String(localized: "Auto-detect")),
+        ("en", String(localized: "English")), ("ru", String(localized: "Russian")), ("de", String(localized: "German")), ("es", String(localized: "Spanish")),
+        ("fr", String(localized: "French")), ("ja", String(localized: "Japanese")), ("ko", String(localized: "Korean")), ("zh", String(localized: "Chinese")),
     ]
     static let defaultLanguage = "auto"
 }

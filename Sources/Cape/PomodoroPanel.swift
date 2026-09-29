@@ -40,7 +40,7 @@ struct PomodoroPanel: View {
                 Button(action: model.toggle) {
                     HStack(spacing: 8) {
                         Image(systemName: model.isRunning ? "pause.fill" : "play.fill")
-                        Text(model.isRunning ? "Pause" : "Start")
+                        Text(model.isRunning ? String(localized: "Pause") : String(localized: "Start"))
                             .font(.system(size: 14, weight: .semibold))
                     }
                     .frame(width: 156, height: 38)
@@ -50,8 +50,8 @@ struct PomodoroPanel: View {
                 .buttonStyle(.plain)
 
                 HStack(spacing: 8) {
-                    iconButton("arrow.counterclockwise", "Reset", action: model.reset)
-                    iconButton("forward.fill", "Skip", action: model.skip)
+                    iconButton("arrow.counterclockwise", String(localized: "Reset"), action: model.reset)
+                    iconButton("forward.fill", String(localized: "Skip"), action: model.skip)
                 }
             }
         }
@@ -81,11 +81,11 @@ struct PomodoroPanel: View {
         if now < reset {
             // Blocked (at/over 100%) vs merely nearing the limit — word it honestly.
             return claude.limitBlocked
-                ? "Claude will be ready at \(clock(reset))"
-                : "Claude limits reset at \(clock(reset))"
+                ? String(localized: "Claude will be ready at \(clock(reset))")
+                : String(localized: "Claude limits reset at \(clock(reset))")
         }
         // Celebrate for an hour after the reset, then fall silent.
-        if now < reset.addingTimeInterval(60 * 60) { return "Claude is ready!" }
+        if now < reset.addingTimeInterval(60 * 60) { return String(localized: "Claude is ready!") }
         return nil
     }
 

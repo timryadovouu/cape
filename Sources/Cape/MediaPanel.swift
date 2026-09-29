@@ -139,7 +139,7 @@ private struct ProgressScrubber: View {
                                    : "-" + Self.clock(media.duration * (1 - fraction)))
                         .contentShape(Rectangle())
                         .onTapGesture { showTotal.toggle() }
-                        .help(showTotal ? "Track length — click for time left" : "Time left — click for track length")
+                        .help(showTotal ? String(localized: "Track length — click for time left") : String(localized: "Time left — click for track length"))
                 }
                 .font(.system(size: 10, weight: .medium)).monospacedDigit()
                 .foregroundStyle(.white.opacity(0.5))

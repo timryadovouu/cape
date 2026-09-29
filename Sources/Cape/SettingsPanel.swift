@@ -34,7 +34,7 @@ final class SettingsWindowController {
                 backing: .buffered,
                 defer: false
             )
-            w.title = "Cape Settings"
+            w.title = String(localized: "Cape Settings")
             w.isReleasedWhenClosed = false
             w.contentViewController = NSHostingController(
                 rootView: SettingsView(settings: settings, voice: voice, updater: updater, buffer: buffer,
@@ -73,28 +73,30 @@ final class SettingsWindowController {
 
 /// A page of the settings sidebar.
 enum SettingsPage: String, CaseIterable, Identifiable {
-    case general, updates, notch, tabs, timer, tasks, buffer, screenTime, voice, tools, terminal, claude
+    case general, tips, updates, notch, tabs, timer, tasks, buffer, screenTime, voice, tools, terminal, claude
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .general: return "General"
-        case .updates: return "Updates"
-        case .notch: return "Notch"
-        case .tabs: return "Tabs"
-        case .timer: return "Timer"
-        case .tasks: return "Tasks"
-        case .buffer: return "Buffer"
-        case .screenTime: return "Screen Time"
-        case .voice: return "Voice"
-        case .tools: return "Tools"
-        case .terminal: return "Terminal"
-        case .claude: return "Claude"
+        case .general: return String(localized: "General")
+        case .tips: return String(localized: "Tips")
+        case .updates: return String(localized: "Updates")
+        case .notch: return String(localized: "Notch")
+        case .tabs: return String(localized: "Tabs")
+        case .timer: return String(localized: "Timer")
+        case .tasks: return String(localized: "Tasks")
+        case .buffer: return String(localized: "Buffer")
+        case .screenTime: return String(localized: "Screen Time")
+        case .voice: return String(localized: "Voice")
+        case .tools: return String(localized: "Tools")
+        case .terminal: return String(localized: "Terminal")
+        case .claude: return String(localized: "Claude")
         }
     }
     var icon: String {
         switch self {
         case .general: return "gearshape.fill"
+        case .tips: return "lightbulb.fill"
         case .updates: return "arrow.down.circle.fill"
         case .notch: return "rectangle.topthird.inset.filled"
         case .tabs: return "square.grid.2x2.fill"
@@ -112,6 +114,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
     var color: Color {
         switch self {
         case .general: return .gray
+        case .tips: return .yellow
         case .updates: return .coral
         case .notch: return Color(white: 0.2)
         case .tabs: return .indigo
@@ -127,7 +130,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
     }
 
     static let groups: [[SettingsPage]] = [
-        [.general, .updates],
+        [.general, .tips, .updates],
         [.notch, .tabs],
         [.timer, .tasks, .buffer, .screenTime, .voice, .tools, .terminal, .claude],
     ]
@@ -200,6 +203,7 @@ struct SettingsView: View {
     @ViewBuilder private func page(_ page: SettingsPage) -> some View {
         switch page {
         case .general: general
+        case .tips: tips
         case .updates: Section { UpdatesSection(updater: updater, settings: settings) }
         case .notch: notch
         case .tabs: tabs
@@ -225,6 +229,78 @@ struct SettingsView: View {
             Text("Claude tracking shows a pulsing blob while a session is thinking, and when your usage window resets.")
                 .font(.caption).foregroundStyle(.secondary)
         }
+        Section {
+            Picker("Language", selection: $settings.appLanguage) {
+                ForEach(AppLanguage.allCases) { Text(verbatim: $0.label).tag($0.rawValue) }
+            }
+            if settings.appLanguage != AppLanguage.launched.rawValue {
+                HStack {
+                    Text("Cape switches language after a relaunch.")
+                        .font(.callout).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Relaunch Cape") { AppLanguage.relaunch() }
+                }
+            }
+        } header: {
+            Text("Language")
+        }
+    }
+
+    @ViewBuilder private var tips: some View {
+        Section {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Welcome tour")
+                    Text("The short intro from the first launch, in the notch.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("Show the tour") { NotificationCenter.default.post(name: .capeShowTour, object: nil) }
+            }
+        }
+        Section("Basics") {
+            tip("cursorarrow.rays", "Hover the notch",
+                "It opens under the cursor and closes when you move away — no clicks needed.")
+            tip("rectangle.split.3x1", "Tabs",
+                "Music, Timer, Tasks, Buffer and Screen Time. Reorder or hide them in Settings › Tabs.")
+            tip("arrow.up.and.down", "Taller panel",
+                "Tasks, Buffer and Screen Time have a little bar at the bottom: tap it to make the panel taller.")
+        }
+        Section("Around the camera") {
+            tip("music.note", "Music island",
+                "Click it to pause or play; rest on it a moment to open Music.")
+            tip("sparkle", "Claude island",
+                "Coral while Claude works, amber when it waits for you, Clawd when it finished while you were away. Hover it for your sessions and Allow / Deny; slide left along the top to open the full panel.")
+            tip("timer", "Timer and reminders",
+                "Hover the countdown for pause / next / cancel. A ringing bell means a task is due — hover it to see which.")
+        }
+        Section("Handy") {
+            tip("doc.on.clipboard", "Buffer",
+                "Everything you copy is kept as a file: click to copy again, drag it out, ⭐ to pin. QR codes in copied screenshots become links.")
+            tip("bell", "Times in words",
+                "Write “call mom at 15:00” or “через 20 минут” in a task — the time becomes a reminder.")
+            tip("mic", "Dictation",
+                "Hold 🌐 Fn or right ⌥ to talk, or double-tap ⌥ — set it up in Settings › Voice.")
+            tip("terminal", "cape done",
+                "Add “; cape done” to a long command and get ✓ or ✗ in the notch — Settings › Terminal.")
+            tip("wrench.and.screwdriver", "Tools",
+                "Color picker, keyboard cleaning, Ports… Give a tool a shortcut in Settings › Tools.")
+        }
+    }
+
+    private func tip(_ icon: String, _ title: LocalizedStringKey, _ text: LocalizedStringKey) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color.coral)
+                .frame(width: 22)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).fontWeight(.medium)
+                Text(text).font(.callout).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.vertical, 2)
     }
 
     @ViewBuilder private var notch: some View {
@@ -238,6 +314,10 @@ struct SettingsView: View {
                 Text("Back to the default tab after \(settings.recallMinutes) min")
             }
             Toggle("Open Media when hovering the music island", isOn: $settings.openMediaOnHover)
+            Picker("While music plays, the island shows", selection: $settings.musicIslandCover) {
+                Text("Equalizer").tag(false)
+                Text("Album cover").tag(true)
+            }
         }
         Section("Flashes") {
             Toggle("Show battery level when the charger connects", isOn: $settings.showCharging)
@@ -342,6 +422,17 @@ struct SettingsView: View {
                 Text("Top 20").tag(20)
                 Text("All").tag(100_000)
             }
+        }
+        Section {
+            Picker("Count battery use", selection: $settings.energyOnBatteryOnly) {
+                Text("Only on battery").tag(true)
+                Text("All the time").tag(false)
+            }
+        } header: {
+            Text("Battery use")
+        } footer: {
+            Text("The ⚡ button in Screen Time shows how much of a full charge each app used, and it adds up to what the battery really lost. An app gets its own work (macOS measures every process) plus the screen and the rest of the Mac while it was in front, as on the iPhone; time away goes to macOS. Hover a figure for the split. Both counts are kept, so switching here changes the figures at once.")
+                .font(.caption).foregroundStyle(.secondary)
         }
     }
 
@@ -468,6 +559,33 @@ struct SettingsView: View {
                 .font(.caption).foregroundStyle(.secondary)
         }
         Section {
+            Toggle("Show Clawd when a session finishes while you're away", isOn: $settings.claudeMascot)
+                .disabled(!settings.trackClaude)
+            if settings.claudeMascot {
+                Picker("Clawd waits for you", selection: $settings.claudeMascotMinutes) {
+                    Text("15 minutes").tag(15)
+                    Text("30 minutes").tag(30)
+                    Text("1 hour").tag(60)
+                    Text("2 hours").tag(120)
+                    Text("3 hours").tag(180)
+                }
+                .disabled(!settings.trackClaude)
+                Picker("Falls asleep after", selection: $settings.claudeMascotSleepMinutes) {
+                    Text("1 minute").tag(1)
+                    Text("5 minutes").tag(5)
+                    Text("15 minutes").tag(15)
+                }
+                .disabled(!settings.trackClaude)
+                if settings.claudeMascotSleepMinutes >= settings.claudeMascotMinutes {
+                    Text("He'd leave before falling asleep — pick less than “Clawd waits for you”.")
+                        .font(.caption).foregroundStyle(.orange)
+                }
+            }
+        } footer: {
+            Text("Claude's little critter sits in the island until you look: click it, pick the session in the list, or switch to the app it runs in — he leaves with a happy hop. A session that finishes while its app is in front doesn't call him — you saw it. Waited too long: he dozes off (hover to wake him), and in the end waves and walks home behind the camera; quitting that app sends him home too. Up to four stand side by side, one per session.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+        Section {
             Toggle("Play a sound when Claude finishes", isOn: $settings.claudeSound)
                 .disabled(!settings.trackClaude)
             if settings.claudeSound {
@@ -512,11 +630,11 @@ struct SettingsView: View {
 
     private func confirmDeleteModel() {
         let alert = NSAlert()
-        alert.messageText = "Delete the dictation model?"
-        alert.informativeText = "It will be removed from disk. You can re-download it any time from here."
+        alert.messageText = String(localized: "Delete the dictation model?")
+        alert.informativeText = String(localized: "It will be removed from disk. You can re-download it any time from here.")
         alert.alertStyle = .warning
-        alert.addButton(withTitle: "Delete")
-        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: String(localized: "Delete"))
+        alert.addButton(withTitle: String(localized: "Cancel"))
         if alert.runModal() == .alertFirstButtonReturn { voice.deleteModel() }
     }
 
@@ -525,7 +643,7 @@ struct SettingsView: View {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
-        panel.prompt = "Choose"
+        panel.prompt = String(localized: "Choose")
         panel.directoryURL = settings.bufferRoot
         if panel.runModal() == .OK, let url = panel.url {
             settings.bufferRootPath = url.path
@@ -635,7 +753,7 @@ private struct TerminalPage: View {
                     Text("Not installed")
                 }
                 Spacer()
-                Button(installed ? "Remove" : "Install") {
+                Button(installed ? String(localized: "Remove") : String(localized: "Install")) {
                     do {
                         try installed ? shell.uninstall() : shell.install()
                         error = nil

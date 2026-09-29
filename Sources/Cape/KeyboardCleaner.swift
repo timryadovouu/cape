@@ -28,8 +28,8 @@ final class KeyboardCleaner: ObservableObject {
         guard installTap() else {
             if AXIsProcessTrusted() {
                 let alert = NSAlert()
-                alert.messageText = "Couldn't lock the keyboard"
-                alert.informativeText = "macOS refused the keyboard event tap. Try again in a moment."
+                alert.messageText = String(localized: "Couldn't lock the keyboard")
+                alert.informativeText = String(localized: "macOS refused the keyboard event tap. Try again in a moment.")
                 alert.runModal()
             } else {
                 // Shows the standard "grant Accessibility" prompt with a link to Settings.

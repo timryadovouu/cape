@@ -13,6 +13,13 @@ enum MediaSource: String {
 ///
 /// Uses Spotify's AppleScript interface when Spotify is running, otherwise
 /// falls back to `cmus-remote` if cmus is running. Both avoid private APIs.
+///
+/// Queries run a process (`osascript` / `cmus-remote`), so they're spent only
+/// when something can have changed: Spotify announces every change itself (a
+/// slow re-sync catches seeks); cmus can't, so it's asked every couple of
+/// seconds — but only while it runs, which a cheap process-table check tells.
+/// No player running → no process launched at all. Between queries the view
+/// extrapolates the position, so the progress bar still moves smoothly.
 final class MediaController: ObservableObject {
     @Published private(set) var source: MediaSource = .none
     @Published private(set) var title: String = ""
@@ -42,6 +49,8 @@ final class MediaController: ObservableObject {
     private var artworkCacheOrder: [String] = []
 
     private var timer: Timer?
+    private var lastPoll = Date.distantPast
+    private var cmusPID: pid_t = 0          // last seen, to skip the process-table scan
     private let queue = DispatchQueue(label: "io.cape.media")
     private lazy var cmusRemote = Self.findCmusRemote()
 
@@ -51,13 +60,21 @@ final class MediaController: ObservableObject {
 
     init(mediaKeys: Bool = true) {
         self.mediaKeys = mediaKeys
-        let t = Timer(timeInterval: 1.5, repeats: true) { [weak self] _ in self?.poll() }
+        let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in self?.tick() }
         RunLoop.main.add(t, forMode: .common)
         timer = t
         // Spotify posts this the instant playback changes — no polling lag on ⏯.
         DistributedNotificationCenter.default().addObserver(
             forName: NSNotification.Name("com.spotify.client.PlaybackStateChanged"),
             object: nil, queue: .main) { [weak self] _ in self?.poll() }
+        // A player opening or quitting changes the source right away.
+        let ws = NSWorkspace.shared.notificationCenter
+        for name in [NSWorkspace.didLaunchApplicationNotification, NSWorkspace.didTerminateApplicationNotification] {
+            ws.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
+                let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+                if app?.bundleIdentifier == "com.spotify.client" { self?.poll() }
+            }
+        }
         if mediaKeys { setupMediaKeys() }
         poll()
     }
@@ -68,7 +85,37 @@ final class MediaController: ObservableObject {
         NSWorkspace.shared.runningApplications.contains { $0.bundleIdentifier == "com.spotify.client" }
     }
 
+    /// Every second, but cheap: decides whether a real query is due.
+    private func tick() {
+        let interval: TimeInterval
+        if spotifyRunning {
+            interval = isPlaying ? 15 : 30      // it notifies us; this only re-syncs
+        } else if cmusRemote != nil, cmusRunning() {
+            interval = isPlaying ? 2 : 6        // no notifications from cmus
+        } else {
+            if source != .none { publish(.none, NowPlaying()) }
+            return
+        }
+        if Date().timeIntervalSince(lastPoll) >= interval { poll() }
+    }
+
+    /// Is a `cmus` process running? A few syscalls — no process launched.
+    private func cmusRunning() -> Bool {
+        var name = [CChar](repeating: 0, count: 64)
+        func isCmus(_ pid: pid_t) -> Bool {
+            proc_name(pid, &name, UInt32(name.count)) > 0 && String(cString: name) == "cmus"
+        }
+        if cmusPID > 0, isCmus(cmusPID) { return true }
+        let count = proc_listallpids(nil, 0)
+        guard count > 0 else { return false }
+        var pids = [pid_t](repeating: 0, count: Int(count) + 64)
+        let n = proc_listallpids(&pids, Int32(pids.count * MemoryLayout<pid_t>.size))
+        cmusPID = pids.prefix(Int(max(0, n))).first { $0 > 0 && isCmus($0) } ?? 0
+        return cmusPID > 0
+    }
+
     private func poll() {
+        lastPoll = Date()
         let spotify = spotifyRunning
         let remote = cmusRemote
         queue.async { [weak self] in
