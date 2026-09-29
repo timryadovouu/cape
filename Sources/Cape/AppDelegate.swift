@@ -5,10 +5,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var controller: NotchController!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        if let url = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
-           let icon = NSImage(contentsOf: url) {
-            NSApp.applicationIconImage = icon
-        }
+        AppIconChoice.applyAtLaunch()        // the icon picked in Settings › General
         setupMainMenu()
         if Screenshots.outputDir != nil { Screenshots.capture(modules); return }
         controller = NotchController(modules: modules)

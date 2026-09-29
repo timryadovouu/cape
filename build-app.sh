@@ -36,6 +36,12 @@ if [ -f "Resources/AppIcon.png" ]; then
   rm -rf "$(dirname "$ICONSET")"
 fi
 
+# The painted icons to pick from in Settings › General (Resources/Icons/*.png).
+if [ -d "Resources/Icons" ]; then
+  mkdir -p "$APP/Contents/Resources/Icons"
+  cp Resources/Icons/*.png "$APP/Contents/Resources/Icons/"
+fi
+
 # Interface translations (Resources/Localization/<lang>.lproj): SwiftUI and
 # String(localized:) read them from the app bundle; English is the source.
 if [ -d "Resources/Localization" ]; then

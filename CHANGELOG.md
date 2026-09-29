@@ -4,6 +4,18 @@ All notable changes to Cape are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.5.1] — 2026-09-29
+
+### Added
+- **Pick the app icon** — *Settings › General › App icon*: *Monet* (the new
+  default — willows and water lilies, with “cape” in coral), the *Classic* one,
+  *Sunrise* or *Water Lilies*. It changes in Finder, Launchpad and Spotlight
+  too, and comes back after an update.
+
+### Changed
+- **A new app icon, painted after Claude Monet** — and none of the icons has
+  the notch cut out of the top any more.
+
 ## [0.5.0] — 2026-09-29
 
 ### Added
@@ -341,6 +353,7 @@ Initial public beta.
 - A standalone **Settings** window, Launch at login, and GitHub Actions CI +
   releases.
 
+[0.5.1]: https://github.com/timryadovouu/cape/releases/tag/v0.5.1
 [0.5.0]: https://github.com/timryadovouu/cape/releases/tag/v0.5.0
 [0.4.0]: https://github.com/timryadovouu/cape/releases/tag/v0.4.0
 [0.3.3]: https://github.com/timryadovouu/cape/releases/tag/v0.3.3

@@ -69,6 +69,8 @@ final class Settings: ObservableObject {
     @Published var launchAtLogin: Bool { didSet { applyLoginItem() } }
     /// Interface language (`AppLanguage`); applied at the next launch.
     @Published var appLanguage: String { didSet { d.set(appLanguage, forKey: AppLanguage.key) } }
+    /// The app's icon (Settings › General): Monet (default), classic or another.
+    @Published var appIcon: String { didSet { d.set(appIcon, forKey: AppIconChoice.key) } }
     @Published var trackClaude: Bool { didSet { d.set(trackClaude, forKey: "trackClaude") } }
 
     // MARK: Claude
@@ -135,6 +137,7 @@ final class Settings: ObservableObject {
         screenTimeByEnergy = d.object(forKey: "screenTimeByEnergy") as? Bool ?? false
 
         appLanguage = AppLanguage.saved.rawValue
+        appIcon = d.string(forKey: AppIconChoice.key) ?? AppIconChoice.monet.rawValue
         trackClaude = d.object(forKey: "trackClaude") as? Bool ?? false
         claudeSound = d.object(forKey: "claudeSound") as? Bool ?? false
         claudeSoundName = d.string(forKey: "claudeSoundName") ?? "Glass"

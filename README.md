@@ -261,7 +261,7 @@ in the buffer.
 The coral **gear** opens a resizable window with a sidebar of pages, like
 System Settings (it remembers its size and the last page):
 
-- **General** — Launch at login, Track Claude Code, and the interface language (English / Русский).
+- **General** — Launch at login, Track Claude Code, the interface language (English / Русский), and the app icon (Monet by default, the classic one, Sunrise or Water Lilies).
 - **Tips** — how to use Cape on one page, and *Show the tour* for the welcome tour.
 - **Updates** — current version, *Check for Updates*, *Install & Relaunch*, and automatic checks.
 - **Notch** — the default tab, the reset-to-default-tab delay, *open Media when hovering the music island*, equalizer or album cover in that island, and the charging flash.

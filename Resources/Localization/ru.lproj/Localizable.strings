@@ -6,6 +6,10 @@
 "Entertainment" = "Развлечения";
 "Learning" = "Учёба";
 "Other" = "Другое";
+"Classic" = "Классическая";
+"Monet" = "Моне";
+"Sunrise" = "Восход";
+"Water Lilies" = "Кувшинки";
 "%lldd" = "%lld д";
 "%lldh %lldm" = "%lld ч %lld мин";
 "%lldm" = "%lld мин";
@@ -149,6 +153,9 @@
 "Language" = "Язык";
 "Cape switches language after a relaunch." = "Язык сменится после перезапуска Cape.";
 "Relaunch Cape" = "Перезапустить Cape";
+"Couldn't change the icon of Cape.app here — move it to Applications and try again." = "Здесь не получилось сменить иконку Cape.app — перенеси его в «Программы» и попробуй ещё раз.";
+"App icon" = "Иконка приложения";
+"Also in Finder, Launchpad and Spotlight — Launchpad can take a moment to catch up." = "Меняется и в Finder, Launchpad и Spotlight — Launchpad иногда обновляет её не сразу.";
 "Welcome tour" = "Знакомство";
 "The short intro from the first launch, in the notch." = "Короткое знакомство с первого запуска — прямо в чёлке.";
 "Show the tour" = "Показать";

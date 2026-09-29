@@ -155,6 +155,8 @@ struct SettingsView: View {
     let claude: ClaudeSessionsManager
     let shell: ShellIntegration
     @ObservedObject var navigation: SettingsNavigation
+    /// The picked icon couldn't be put on the bundle (a read-only place).
+    @State private var iconFailed = false
 
     var body: some View {
         NavigationSplitView {
@@ -244,6 +246,46 @@ struct SettingsView: View {
         } header: {
             Text("Language")
         }
+        Section {
+            HStack(spacing: 14) {
+                ForEach(AppIconChoice.allCases) { choice in iconTile(choice) }
+            }
+            .padding(.vertical, 4)
+            if iconFailed {
+                Text("Couldn't change the icon of Cape.app here — move it to Applications and try again.")
+                    .font(.caption).foregroundStyle(.orange)
+            }
+        } header: {
+            Text("App icon")
+        } footer: {
+            Text("Also in Finder, Launchpad and Spotlight — Launchpad can take a moment to catch up.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    /// One icon to pick: its picture, its name, a coral ring when it's the one.
+    private func iconTile(_ choice: AppIconChoice) -> some View {
+        let picked = settings.appIcon == choice.rawValue
+        return Button {
+            settings.appIcon = choice.rawValue
+            iconFailed = !choice.apply()
+        } label: {
+            VStack(spacing: 5) {
+                Group {
+                    if let image = choice.image { Image(nsImage: image).resizable() }
+                    else { RoundedRectangle(cornerRadius: 12).fill(.quaternary) }
+                }
+                .frame(width: 58, height: 58)
+                .padding(3)
+                .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(picked ? Color.coral : .clear, lineWidth: 2))
+                Text(verbatim: choice.title)
+                    .font(.caption)
+                    .foregroundStyle(picked ? .primary : .secondary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder private var tips: some View {
