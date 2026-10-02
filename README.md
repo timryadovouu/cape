@@ -16,27 +16,13 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/timryadovouu/cape/actions/workflows/build.yml">
-    <img src="https://github.com/timryadovouu/cape/actions/workflows/build.yml/badge.svg" alt="Build" />
-  </a>
-  <a href="https://github.com/timryadovouu/cape/releases">
-    <img src="https://img.shields.io/github/v/release/timryadovouu/cape?include_prereleases&color=FA834D" alt="Latest release" />
-  </a>
-  <a href="https://www.apple.com/macos/">
-    <img src="https://img.shields.io/badge/macOS-13%2B-000000?logo=apple&logoColor=white" alt="macOS 13+" />
-  </a>
-  <a href="https://www.swift.org">
-    <img src="https://img.shields.io/badge/Swift-5.9-FA834D?logo=swift&logoColor=white" alt="Swift 5.9" />
-  </a>
-  <a href="https://developer.apple.com/xcode/swiftui/">
-    <img src="https://img.shields.io/badge/UI-SwiftUI%20%2B%20AppKit-3178C6" alt="SwiftUI + AppKit" />
-  </a>
-  <a href="https://github.com/argmaxinc/WhisperKit">
-    <img src="https://img.shields.io/badge/dependency-WhisperKit-FA834D" alt="1 dependency: WhisperKit" />
-  </a>
-  <a href="LICENSE">
-    <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license" />
-  </a>
+  <a href="https://github.com/timryadovouu/cape/actions/workflows/build.yml"><img src="https://github.com/timryadovouu/cape/actions/workflows/build.yml/badge.svg" alt="Build" /></a>
+  <a href="https://github.com/timryadovouu/cape/releases"><img src="https://img.shields.io/github/v/release/timryadovouu/cape?include_prereleases&color=FA834D" alt="Latest release" /></a>
+  <a href="https://www.apple.com/macos/"><img src="https://img.shields.io/badge/macOS-13%2B-000000?logo=apple&logoColor=white" alt="macOS 13+" /></a>
+  <a href="https://www.swift.org"><img src="https://img.shields.io/badge/Swift-5.9-FA834D?logo=swift&logoColor=white" alt="Swift 5.9" /></a>
+  <a href="https://developer.apple.com/xcode/swiftui/"><img src="https://img.shields.io/badge/UI-SwiftUI%20%2B%20AppKit-3178C6" alt="SwiftUI + AppKit" /></a>
+  <a href="https://github.com/argmaxinc/WhisperKit"><img src="https://img.shields.io/badge/dependency-WhisperKit-FA834D" alt="1 dependency: WhisperKit" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license" /></a>
 </p>
 
 ---
@@ -55,7 +41,7 @@ dictation — and it **updates itself** from GitHub Releases.
 - Pinned to the built-in (notch) screen, so plugging in a TV or an extended
   display doesn't move it; works on notchless Macs too (a synthetic top-center notch).
 - In **English and Russian** — switch in Settings › General › Language.
-- A **welcome tour** on the first launch: the notch walks you through its real tabs and islands (again any time from Settings › Tips).
+- A **welcome tour** on the first launch: the notch walks you through its real tabs and islands (again any time from Settings › Tips), and its last step lets you switch off what you don't need — Pomodoro, Screen Time, or the developer extras (Claude Code, Ports, `cape done`). Whatever is off doesn't run at all.
 
 ## Screenshots
 
@@ -113,15 +99,17 @@ combination with ⌘, ⌥ or ⌃ — no extra permission needed).
   shown, *Show all* adds system services. **Jupyter kernels** (a notebook open in
   VS Code or Jupyter) are recognized and shown as one row with their ports — no
   browser button, and stopping one warns that the notebook loses its variables.
-  Read with `lsof`, only while the page is open.
+  Read with `lsof`, only while the page is open. A developer thing — hide it in
+  Settings › Tools if you don't need it.
 
 ## Beside the camera
 
 When the panel is open, the black areas either side of the lens show live
-**system metrics**: **CPU** on the left (coral bar + %), **RAM** on the right
+**system metrics**: **CPU** on the left (red bar + %), **RAM** on the right
 (used / total GB). RAM "used" is resident active + wired memory, matching
 `htop` / `btop` rather than Activity Monitor's higher, compression-inclusive
-figure. No tab, no clutter — just there while you're already looking.
+figure. No tab, no clutter — just there while you're already looking (and
+measured only then).
 
 ## The collapsed strip
 
@@ -146,8 +134,9 @@ the left, an empty island mirrors Claude's, keeping it centered.
 
 ## Claude Code integration
 
-Optional, off by default. Flip **Track Claude Code** in Settings and Cape
-gives you:
+On for a new install when Claude Code is on the Mac (the welcome tour's last
+step and **Settings › General › Track Claude Code** switch it off). With it off,
+Cape doesn't read anything. On, it gives you:
 
 <p align="center">
   <img src="docs/screenshots/claude.png" width="40%" alt="Claude Code sessions" />
@@ -223,11 +212,13 @@ swift test; cape done
 no `$?` needed — and zsh history suggestions pick the whole line up after the
 first time. Use `;`, not `&&`, or a failure never reaches it.
 
-**Long commands** (off by default): the same flash after *any* command that ran
+**Long commands**: the same flash after *any* command that ran
 longer than a threshold (30 s by default) — only while you're in another window,
 and not for editors, `ssh`, `claude`, `less`, `top` and the like.
 
-Install it from **Settings › Terminal** — it adds one line to `~/.zshrc` (backed
+A new install that has a `~/.zshrc` gets both switched on (turn them off in the
+welcome tour's last step); otherwise install it from **Settings › Terminal** — it
+adds one line to `~/.zshrc` (backed
 up to `~/.zshrc.cape-backup`); open a new terminal tab afterwards. The function
 reports by dropping a small file into Cape's data folder, which Cape picks up at
 once.
@@ -254,7 +245,10 @@ in the buffer.
     release to transcribe. A quick press keeps its usual job (e.g. the emoji
     picker), and using the key in a chord (⌥+letter, Fn+⌫) cancels the recording.
 - The mic button reflects its state — recording (pulsing), loading the model,
-  transcribing — and stays disabled until a model is downloaded.
+  transcribing — and stays disabled until a model is downloaded. The dictation
+  keys without a model don't record: a strip drops down from the brow —
+  *Dictation needs a model* with a ⬇ button — and shows the download, the
+  first-time preparation and *Ready* (✕ puts it away for later).
 
 ## Settings
 
@@ -265,14 +259,14 @@ System Settings (it remembers its size and the last page):
 - **Tips** — how to use Cape on one page, and *Show the tour* for the welcome tour.
 - **Updates** — current version, *Check for Updates*, *Install & Relaunch*, and automatic checks.
 - **Notch** — the default tab, the reset-to-default-tab delay, *open Media when hovering the music island*, equalizer or album cover in that island, and the charging flash.
-- **Tabs** — enable/disable and reorder the tabs in the rail.
+- **Tabs** — enable/disable and reorder the tabs in the rail. A disabled tab doesn't run in the background: with Screen Time off, no time or battery is counted; with the Timer off, a running Pomodoro stops.
 - **Timer** — short/long break lengths, the end-of-session sound, and whether it plays during a Focus.
 - **Tasks** — the reminder sound.
 - **Buffer** — folder location, auto-clear age or clear-at-end-of-day, and QR codes in copied images.
 - **Screen Time** — how long to keep daily history (default 1 year), how many apps the list shows, and whether battery use counts only on battery.
 - **Voice** — dictation model (downloaded once, with a delete button and a ✓ on the ones you have), spoken language, translate-to-English, the double-tap key, hold-to-talk keys, and preloading the model at launch.
-- **Tools** — a global shortcut for each tool, and the reversed mouse wheel.
-- **Terminal** — install `cape done` into zsh, its sound, and the long-command flash with its threshold.
+- **Tools** — a global shortcut for each tool, Ports on / off, and the reversed mouse wheel.
+- **Terminal** — install / remove `cape done` in zsh, its sound, and the long-command flash with its threshold.
 - **Claude** — Allow / Deny from the notch and its timeout; Clawd (on / off, how long he waits, when he falls asleep); and an optional sound when Claude finishes (its own system sound, plus Focus/DND and *mute while the Claude app is in front* toggles).
 
 ## Install & run

@@ -28,6 +28,12 @@ final class NotchState: ObservableObject {
     @Published var claudePeek = false
     /// Where Clawd looks: -1 left, 0 ahead, 1 right — toward the cursor.
     @Published var clawdLook = 0
+    /// The dictation strip under the brow (no model yet → download, progress,
+    /// ready), and whether it's at "ready".
+    @Published var voiceNotice = false
+    @Published var voiceNoticeReady = false
+    /// Screenshot tool: show the strip in this phase instead of the real one.
+    var voiceNoticeDemo: VoiceNoticePanel.Phase?
     /// The welcome tour's current step, while it's showing (keeps the notch open).
     @Published var tourStep: Int?
     /// The music island was clicked (play / pause) — don't open Media from that hover.

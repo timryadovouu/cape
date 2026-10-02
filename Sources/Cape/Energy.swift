@@ -23,7 +23,8 @@ import IOKit.pwr_mgt
 ///
 /// Two sums per app: everything, and only while on battery — Settings › Screen
 /// Time picks which one is shown. Shown as a share of a full charge. About a
-/// millisecond of CPU a minute; a small file per day.
+/// millisecond of CPU a minute; a small file per day. Runs only while the
+/// Screen Time tab is on.
 final class EnergyMonitor: ObservableObject {
     struct AppEnergy: Codable, Equatable {
         var name: String
@@ -61,11 +62,32 @@ final class EnergyMonitor: ObservableObject {
     private var onScreen: [String: TimeInterval] = [:]
     private var activation: NSObjectProtocol?
 
+    private let live: Bool
+
     init(settings: Settings, live: Bool = true) {
         self.settings = settings
+        self.live = live
         guard live else { return }
         today = Self.load(day)
         cleanupOld()
+    }
+
+    deinit {
+        if let activation { NSWorkspace.shared.notificationCenter.removeObserver(activation) }
+    }
+
+    /// Measure only while the Screen Time tab is on (Settings › Tabs). Off:
+    /// no timer, no app-switch observer, nothing recorded. Back on, the first
+    /// reading is only a starting point — the time it was off isn't counted.
+    func setActive(_ on: Bool) {
+        guard live, on != (timer != nil) else { return }
+        timer?.invalidate()
+        timer = nil
+        if let activation { NSWorkspace.shared.notificationCenter.removeObserver(activation) }
+        activation = nil
+        front = nil
+        onScreen = [:]
+        guard on else { return }
         front = Self.frontKey(NSWorkspace.shared.frontmostApplication).map { ($0, Date()) }
         activation = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
@@ -75,14 +97,17 @@ final class EnergyMonitor: ObservableObject {
             let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
             self.front = Self.frontKey(app).map { ($0, Date()) }
         }
-        queue.async { [weak self] in self?.sample(onScreen: [:], idle: 0) }       // the baseline
+        queue.async { [weak self] in                                   // the baseline
+            guard let self else { return }
+            self.last = [:]
+            self.lastMeter = nil
+            self.overshoot = 0
+            self.lastSample = Date()
+            self.sample(onScreen: [:], idle: 0)
+        }
         let t = Timer(timeInterval: 60, repeats: true) { [weak self] _ in self?.tick() }
         RunLoop.main.add(t, forMode: .common)
         timer = t
-    }
-
-    deinit {
-        if let activation { NSWorkspace.shared.notificationCenter.removeObserver(activation) }
     }
 
     /// The day's energy for the counter Settings picks (on battery / always).

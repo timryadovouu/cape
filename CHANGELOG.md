@@ -4,6 +4,33 @@ All notable changes to Cape are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.5.2] — 2026-10-02
+
+### Added
+- **Pick what you need on the first launch** — the welcome tour's last step
+  lists the extras as switches: the Pomodoro timer and Screen Time (with battery
+  use), and for developers Claude Code sessions, Ports and the terminal's
+  `cape done`. Everything starts on; turn off what you don't need, or skip the
+  tour to keep it all. The developer extras switch on only where they fit —
+  Claude when Claude Code is installed, `cape done` when there's a `~/.zshrc`.
+  People updating keep their settings.
+- **A switch for Ports** — *Settings › Tools*.
+
+### Changed
+- **Switched off means not running.** A hidden Screen Time tab no longer
+  counts time or battery in the background; with Claude tracking off its log
+  isn't read at all; CPU / RAM are measured only while the notch is open; and
+  turning the Pomodoro tab off stops a running timer. With Screen Time and
+  Claude off, Cape sits idle with almost no wake-ups.
+- **Dictation without a model says so** — the dictation keys used to start
+  recording and then quietly download the model (~626 MB). Now a strip drops
+  down from the brow — “Dictation needs a model” with a ⬇ button — and shows the
+  download, then “Preparing the model…” (the first load compiles it for the
+  Neural Engine, which took a silent while before), then “Ready”. A red ✕ in
+  the island beside it puts it away for later — and while the model downloads,
+  cancels the download (half-downloaded files are removed).
+- **Cancel a model download** in *Settings › Voice* too.
+
 ## [0.5.1] — 2026-09-29
 
 ### Added
@@ -353,6 +380,7 @@ Initial public beta.
 - A standalone **Settings** window, Launch at login, and GitHub Actions CI +
   releases.
 
+[0.5.2]: https://github.com/timryadovouu/cape/releases/tag/v0.5.2
 [0.5.1]: https://github.com/timryadovouu/cape/releases/tag/v0.5.1
 [0.5.0]: https://github.com/timryadovouu/cape/releases/tag/v0.5.0
 [0.4.0]: https://github.com/timryadovouu/cape/releases/tag/v0.4.0

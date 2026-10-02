@@ -109,6 +109,7 @@ enum Screenshots {
 
     /// Demo Claude sessions and dev servers — the real ones are never read.
     private static func seedDemoLive(_ modules: AppModules) {
+        modules.system.setActive(true)          // the shots show the open notch
         let now = Date()
         modules.ports.showDemo([
             .init(ports: [3000], pid: 48211, name: "node", project: "web", started: now.addingTimeInterval(-8100),
@@ -156,12 +157,16 @@ enum Screenshots {
 
     /// The collapsed brow with the Claude sessions list dropped down from it.
     private static func captureClaudePeek(_ modules: AppModules, to out: URL, name: String = "claude",
-                                          open: Bool = true, then done: @escaping () -> Void) {
+                                          open: Bool = true, configure: ((NotchState) -> Void)? = nil,
+                                          then done: @escaping () -> Void) {
         let state = NotchState(settings: modules.settings)
         state.claudePeek = open
+        configure?(state)
         let metrics = NotchMetrics.current()
-        let peekH = ClaudePeekPanel.height(sessions: modules.claude.sessions, permissions: modules.claude.permissions)
-        let size = NSSize(width: metrics.notchWidth + 2 * NotchRootView.islandWidth + (name == "claude" ? 60 : 140),
+        let peekH = name.hasPrefix("voice") ? VoiceNoticePanel.height
+            : ClaudePeekPanel.height(sessions: modules.claude.sessions, permissions: modules.claude.permissions)
+        let size = NSSize(width: metrics.notchWidth + 2 * NotchRootView.islandWidth
+                            + (name == "claude" ? 60 : name.hasPrefix("voice") ? 520 : 140),
                           height: metrics.notchHeight + NotchRootView.topOvershoot + peekH + 24)
         let root = NotchRootView(state: state, pomodoro: modules.pomodoro, media: modules.media,
                                  claude: modules.claude, settings: modules.settings, todo: modules.todo,
@@ -264,7 +269,23 @@ enum Screenshots {
                     api.seen = false
                     modules.claude.showDemo([api, cape, blog], [])
                     captureClaudePeek(modules, to: out, name: "clawd", open: false) {
-                        captureClaudePeek(modules, to: out, name: "clawdList") { NSApp.terminate(nil) }
+                        captureClaudePeek(modules, to: out, name: "clawdList") {
+                            // The dictation strip, phase by phase.
+                            modules.claude.showDemo([], [])
+                            modules.todo.dismissRinging()
+                            let phases: [(String, VoiceNoticePanel.Phase)] = [
+                                ("voiceNeeds", .needsModel), ("voiceDownloading", .downloading(0.42)),
+                                ("voicePreparing", .preparing), ("voiceReady", .ready),
+                            ]
+                            func shoot(_ i: Int) {
+                                guard i < phases.count else { NSApp.terminate(nil); return }
+                                captureClaudePeek(modules, to: out, name: phases[i].0, open: false, configure: { s in
+                                    s.voiceNotice = true
+                                    s.voiceNoticeDemo = phases[i].1
+                                }) { shoot(i + 1) }
+                            }
+                            shoot(0)
+                        }
                     }
                 }
                 return

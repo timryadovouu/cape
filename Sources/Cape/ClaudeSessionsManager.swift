@@ -106,12 +106,44 @@ final class ClaudeSessionsManager: ObservableObject {
 
     /// `live: false` (the screenshot tool): read nothing, touch no hooks — the
     /// sessions come from `showDemo`.
+    private let live: Bool
+
     init(settings: Settings, live: Bool = true) {
         self.settings = settings
+        self.live = live
         guard live else { return }
+        // Bring the hooks up to date (new events, a moved app) when tracking is on.
+        DispatchQueue.main.async { [weak self] in
+            guard let self, settings.trackClaude, self.hooksNeedUpdate() else { return }
+            self.installHooks()
+        }
+    }
+
+    /// Watch only while "Track Claude Code sessions" is on (Settings › General):
+    /// off, the log isn't read, nothing is observed, and the island and the
+    /// sessions list are empty. Back on, it picks up what's running, as at launch.
+    func setActive(_ on: Bool) {
+        guard live, on != (timer != nil) else { return }
+        timer?.invalidate()
+        timer = nil
+        workspaceObservers.forEach(NSWorkspace.shared.notificationCenter.removeObserver)
+        workspaceObservers = []
+        guard on else {
+            byID = [:]
+            happyExits = []
+            if !sessions.isEmpty { sessions = [] }
+            if !permissions.isEmpty { permissions = [] }
+            if !clawds.isEmpty { clawds = [] }
+            if anyWorking { anyWorking = false }
+            if needsYou { needsYou = false }
+            setLimit(reset: nil, blocked: false)
+            return
+        }
         // Replay the end of the log to find sessions already running; `settle()`
         // then dates them by their transcripts, so finished ones don't come back
         // as "thinking" (the island would hang after a relaunch).
+        byID = [:]
+        offset = 0
         if let size = (try? FileManager.default.attributesOfItem(atPath: eventsFile.path))?[.size] as? NSNumber {
             offset = size.uint64Value > replayBytes ? size.uint64Value - replayBytes : 0
             replaying = true
@@ -130,11 +162,6 @@ final class ClaudeSessionsManager: ObservableObject {
                 [weak self] note in self?.appQuit(Self.bundleID(note))
             },
         ]
-        // Bring the hooks up to date (new events, a moved app) when tracking is on.
-        DispatchQueue.main.async { [weak self] in
-            guard let self, settings.trackClaude, self.hooksNeedUpdate() else { return }
-            self.installHooks()
-        }
     }
 
     deinit {

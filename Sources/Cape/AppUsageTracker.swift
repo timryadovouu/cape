@@ -18,7 +18,8 @@ struct DayStats {
     }
 }
 
-/// Screen-time tracking done locally: every second we credit the frontmost app.
+/// Screen-time tracking done locally: every second we credit the frontmost app
+/// (while the Screen Time tab is on).
 /// Each day is stored as its own JSON snapshot so history is kept and browsable.
 /// Everything stays on this Mac. Files older than the retention setting are pruned.
 final class AppUsageTracker: ObservableObject {
@@ -48,6 +49,15 @@ final class AppUsageTracker: ObservableObject {
         migrateLegacy()
         loadToday()
         cleanupOld()
+    }
+
+    /// Count only while the Screen Time tab is on (Settings › Tabs): off, there's
+    /// no timer at all and nothing is recorded.
+    func setActive(_ on: Bool) {
+        guard on != (timer != nil) else { return }
+        timer?.invalidate()
+        timer = nil
+        guard on else { save(); lastApp = nil; return }
         let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in self?.step() }
         RunLoop.main.add(t, forMode: .common)
         timer = t

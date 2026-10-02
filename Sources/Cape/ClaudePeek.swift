@@ -181,7 +181,7 @@ private struct StatusGlyph: View {
 }
 
 /// A coral arc turning once a second.
-private struct Spinner: View {
+struct Spinner: View {
     @State private var turning = false
     var body: some View {
         Circle()

@@ -30,6 +30,23 @@ enum Tour {
         return true
     }
 
+    /// A fresh install: everything on, the developer extras too — where they fit.
+    /// Claude only if Claude Code is here (~/.claude), `cape done` only if there's
+    /// a ~/.zshrc (no writing into other people's files otherwise); Ports always.
+    /// The setup step shows each as a switch to turn off; skipping keeps them on.
+    static func applyFirstLaunchDefaults(_ modules: AppModules) {
+        let settings = modules.settings
+        let fm = FileManager.default
+        if fm.fileExists(atPath: fm.homeDirectoryForCurrentUser.appendingPathComponent(".claude").path) {
+            settings.trackClaude = true
+            modules.claude.installHooks()
+        }
+        if fm.fileExists(atPath: ShellIntegration.zshrc.path), (try? modules.shell.install()) != nil {
+            settings.shellAuto = true
+        }
+        settings.showPorts = true
+    }
+
     static func steps(_ settings: Settings) -> [TourStep] {
         [.welcome] + settings.enabledModules.map(TourStep.module) + [.tools, .islands, .setup]
     }
@@ -120,7 +137,7 @@ struct TourCaption: View {
             case .module(let m): Text(verbatim: m.name)
             case .tools: Text("Tools")
             case .islands: Text("Around the camera")
-            case .setup: Text("Turn on what you need")
+            case .setup: Text("Keep what you need")
             }
         }
         .font(.system(size: 13, weight: .semibold))
@@ -145,7 +162,7 @@ struct TourCaption: View {
         case .islands:
             Text("With the notch closed, small islands show what's going on. They're clickable — hover or click them.")
         case .setup:
-            Text("macOS asks for a permission only when a feature first needs it. The rest is in Settings.")
+            Text("It's all on — switch off what you don't need; it then doesn't run at all. Change it any time in Settings.")
         }
     }
 
@@ -167,6 +184,7 @@ struct TourCaption: View {
 struct TourPage: View {
     let step: TourStep
     @ObservedObject var settings: Settings
+    @ObservedObject var state: NotchState
     let modules: AppModules
 
     var body: some View {
@@ -249,22 +267,61 @@ struct TourPage: View {
         }
     }
 
+    /// What to keep: tabs and launch on the left, the developer extras on the
+    /// right — each a switch, all on unless turned off.
     private var setup: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            switchRow("Launch at login", on: settings.launchAtLogin) { settings.launchAtLogin.toggle() }
-            switchRow("Track Claude Code sessions", on: settings.trackClaude) {
-                settings.trackClaude.toggle()
-                if settings.trackClaude { modules.claude.installHooks() }
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 18) {
+                VStack(alignment: .leading, spacing: 11) {
+                    groupTitle("Tabs and launch")
+                    switchRow("Launch at login", on: settings.launchAtLogin) { settings.launchAtLogin.toggle() }
+                    switchRow("Pomodoro timer", on: settings.isEnabled(.timer)) { toggleTab(.timer) }
+                    switchRow("Screen Time and battery use", on: settings.isEnabled(.screenTime)) { toggleTab(.screenTime) }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: 11) {
+                    groupTitle("For developers")
+                    switchRow("Claude Code sessions", on: settings.trackClaude) {
+                        settings.trackClaude.toggle()
+                        if settings.trackClaude { modules.claude.installHooks() }
+                    }
+                    switchRow("Ports — servers on localhost", on: settings.showPorts) { settings.showPorts.toggle() }
+                    switchRow("Terminal: cape done, long commands", on: terminalOn) { toggleTerminal() }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            switchRow("Flash after long terminal commands", on: settings.shellAuto) { settings.shellAuto.toggle() }
             Divider().overlay(Color.white.opacity(0.1))
-            link("lightbulb", "All the tips — Settings › Tips") { modules.settingsWindow.show(.tips) }
-            link("mic", "Dictation keys — Settings › Voice") { modules.settingsWindow.show(.voice) }
-            link("terminal", "Install cape done — Settings › Terminal") { modules.settingsWindow.show(.terminal) }
+            HStack(spacing: 18) {
+                link("lightbulb", "All the tips — Settings › Tips") { modules.settingsWindow.show(.tips) }
+                link("mic", "Dictation keys — Settings › Voice") { modules.settingsWindow.show(.voice) }
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(.top, 6)
         .padding(.horizontal, 6)
+    }
+
+    private func groupTitle(_ key: LocalizedStringKey) -> some View {
+        Text(key).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.45))
+            .textCase(.uppercase)
+    }
+
+    /// A tab on / off — and the tour keeps standing on this, its last step.
+    private func toggleTab(_ module: Module) {
+        settings.setModuleEnabled(module, !settings.isEnabled(module))
+        state.tourStep = Tour.steps(settings).count - 1
+    }
+
+    /// `cape done` in zsh plus the flash after long commands, together.
+    private var terminalOn: Bool { settings.shellAuto && modules.shell.isInstalled }
+
+    private func toggleTerminal() {
+        if terminalOn {
+            settings.shellAuto = false
+            try? modules.shell.uninstall()
+        } else if (try? modules.shell.install()) != nil {
+            settings.shellAuto = true
+        }
     }
 
     private func link(_ icon: String, _ key: LocalizedStringKey, _ action: @escaping () -> Void) -> some View {

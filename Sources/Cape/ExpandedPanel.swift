@@ -61,7 +61,7 @@ struct ExpandedPanel: View {
                 let steps = Tour.steps(settings)
                 switch steps.indices.contains(index) ? steps[index] : .welcome {
                 case .module, .tools: modulePanel
-                case let step: TourPage(step: step, settings: settings, modules: modules)
+                case let step: TourPage(step: step, settings: settings, state: state, modules: modules)
                 }
                 TourCaption(state: state, settings: settings)
             } else {

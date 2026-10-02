@@ -29,6 +29,9 @@ final class NotchController {
     private var screenObserver: NSObjectProtocol?
     private var tourObserver: NSObjectProtocol?
     private var shortcutsSub: AnyCancellable?
+    private var expandedSub: AnyCancellable?
+    private var voiceSub: AnyCancellable?
+    private var noticeHide: DispatchWorkItem?
 
     private let windowWidth: CGFloat = 640
     // Tall enough to hold the expanded panel in its "tall" (Tasks-grown) size.
@@ -75,7 +78,16 @@ final class NotchController {
             self.state.flashCharging(level)
         }
         modules.todo.onReminder = { [weak self] _ in self?.playReminderSound() }
+        // Dictation without a model: the strip under the brow, with ⬇ to download.
+        modules.voice.onNeedsModel = { [weak self] in self?.showVoiceNotice() }
+        voiceSub = modules.voice.$status.sink { [weak self] status in
+            DispatchQueue.main.async { self?.voiceStatusChanged(status) }
+        }
         modules.updater.onUpdateFound = { [weak self] version in self?.state.flashUpdate(version) }
+        // CPU / RAM are measured only while the open notch shows them.
+        expandedSub = state.$expanded.removeDuplicates().sink { [weak self] open in
+            self?.modules.system.setActive(open)
+        }
         // Global tool shortcuts — (re)registered whenever they change in Settings.
         shortcutsSub = modules.settings.$toolShortcuts.sink { [weak self] map in
             self?.registerToolShortcuts(map)
@@ -96,6 +108,7 @@ final class NotchController {
         tourObserver = NotificationCenter.default.addObserver(
             forName: .capeShowTour, object: nil, queue: .main) { [weak self] _ in self?.startTour() }
         if Tour.shouldShowOnLaunch {
+            Tour.applyFirstLaunchDefaults(modules)       // all on; the tour's last step offers to turn off
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in self?.startTour() }
         }
     }
@@ -228,6 +241,11 @@ final class NotchController {
             }
             state.claudePeek = false
         }
+        // The dictation strip: its ⬇ and ✕ take clicks.
+        if let zone = voiceNoticeZone(), zone.contains(mouse) {
+            panel.ignoresMouseEvents = false
+            return
+        }
         if let zone = claudeIslandZone(), zone.contains(mouse) {
             state.claudePeek = true
             panel.ignoresMouseEvents = false
@@ -258,6 +276,47 @@ final class NotchController {
         }
     }
 
+    // MARK: - Dictation strip
+
+    private func showVoiceNotice() {
+        state.voiceNoticeReady = false
+        noticeHide?.cancel()
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) { state.voiceNotice = true }
+    }
+
+    /// It stays until its ✕ or the model is ready — then it says so and goes.
+    private func voiceStatusChanged(_ status: VoiceDictation.Status) {
+        guard state.voiceNotice else { return }
+        switch status {
+        case .downloading, .loading:
+            noticeHide?.cancel()
+        case .idle where modules.voice.modelDownloaded:
+            state.voiceNoticeReady = true
+            hideVoiceNotice(after: 2.5)
+        default:
+            break                                 // a failed download: the ⬇ is back
+        }
+    }
+
+    private func hideVoiceNotice(after seconds: TimeInterval) {
+        noticeHide?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) { self?.state.voiceNotice = false }
+        }
+        noticeHide = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: work)
+    }
+
+    /// The strip under the brow (for its ⬇ button).
+    private func voiceNoticeZone() -> NSRect? {
+        guard state.voiceNotice, !state.expanded else { return nil }
+        let f = metrics.screenFrame
+        let right = metrics.centerX + metrics.notchWidth / 2 + claudeSlotW
+        let left = mediaLeftEdge()
+        let bottom = f.maxY - metrics.notchHeight - NotchRootView.topOvershoot - VoiceNoticePanel.height - 10
+        return NSRect(x: left - 10, y: bottom, width: right - left + 20, height: f.maxY - bottom + 40)
+    }
+
     /// When the cursor came onto the music island (for the open-Media delay).
     private var mediaHoverStart: Date?
 
@@ -268,6 +327,13 @@ final class NotchController {
     }
     /// …and has sessions to show on hover.
     private var claudeIslandShown: Bool { claudeIslandVisible && !modules.claude.sessions.isEmpty }
+
+    /// Room taken right of the camera before the timer: the Claude island, or the
+    /// empty one that keeps the brow symmetric under the dictation strip.
+    private var claudeSlotW: CGFloat {
+        claudeIslandVisible ? claudeIslandW
+            : (state.voiceNotice && !state.expanded ? NotchRootView.islandWidth : 0)
+    }
 
     /// Its width: the dot's island, or wider for three or four Clawds.
     private var claudeIslandW: CGFloat {
@@ -304,7 +370,7 @@ final class NotchController {
         let hasIsland = (m.source != .none || m.isPlaying) && modules.settings.isEnabled(.media)
         if let alert = state.alert { return notchLeft - NotchRootView.alertWidth(alert) }
         // No left island: the open list gets an empty one, mirroring Claude's.
-        return notchLeft - (hasIsland || state.claudePeek ? NotchRootView.islandWidth : 0)
+        return notchLeft - (hasIsland || state.claudePeek || state.voiceNotice ? NotchRootView.islandWidth : 0)
     }
 
     /// Screen rect of the collapsed timer pill (grown to include the controls
@@ -313,7 +379,7 @@ final class NotchController {
     private func pomodoroControlZone() -> NSRect? {
         guard modules.pomodoro.isActive else { return nil }
         let f = metrics.screenFrame
-        let claudeExt: CGFloat = claudeIslandVisible ? claudeIslandW : 0
+        let claudeExt: CGFloat = claudeSlotW
         let rightTotal = NotchRootView.timerPillWidth
             + (state.pomodoroControls ? NotchRootView.pomodoroControlsWidth : 0)
         let startX = metrics.centerX + metrics.notchWidth / 2 + claudeExt
@@ -345,7 +411,7 @@ final class NotchController {
         let ringing = modules.todo.ringing
         guard !ringing.isEmpty else { return nil }
         let f = metrics.screenFrame
-        let claudeExt: CGFloat = claudeIslandVisible ? claudeIslandW : 0
+        let claudeExt: CGFloat = claudeSlotW
         let timerExt: CGFloat = modules.pomodoro.isActive
             ? NotchRootView.timerPillWidth
                 + (state.pomodoroControls ? NotchRootView.pomodoroControlsWidth : 0)

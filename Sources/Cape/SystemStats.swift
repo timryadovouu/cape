@@ -1,7 +1,8 @@
 import Foundation
 import Darwin
 
-/// Live CPU / RAM / storage usage, sampled a couple of times per second.
+/// Live CPU / RAM / storage usage — sampled every 2 s, and only while the open
+/// notch shows it (`setActive`); with the notch closed nothing is measured.
 final class SystemStats: ObservableObject {
     @Published private(set) var cpu: Double = 0          // 0...1
     @Published private(set) var ramUsed: Double = 0      // bytes
@@ -17,6 +18,14 @@ final class SystemStats: ObservableObject {
 
     init() {
         ramTotal = Double(ProcessInfo.processInfo.physicalMemory)
+    }
+
+    /// Measure while the notch is open: a reading at once, then every 2 s.
+    func setActive(_ on: Bool) {
+        guard on != (timer != nil) else { return }
+        timer?.invalidate()
+        timer = nil
+        guard on else { return }
         sample()
         let t = Timer(timeInterval: 2, repeats: true) { [weak self] _ in self?.sample() }
         RunLoop.main.add(t, forMode: .common)

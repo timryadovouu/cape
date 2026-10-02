@@ -9,6 +9,8 @@ final class Settings: ObservableObject {
     @Published var bufferRetentionDays: Int { didSet { d.set(bufferRetentionDays, forKey: "bufferRetentionDays") } }
     @Published var clearBufferAtEndOfDay: Bool { didSet { d.set(clearBufferAtEndOfDay, forKey: "clearBufferAtEndOfDay") } }
     @Published var scanQRInImages: Bool { didSet { d.set(scanQRInImages, forKey: "scanQRInImages") } }
+    /// Ports (dev servers on localhost) on the Tools page.
+    @Published var showPorts: Bool { didSet { d.set(showPorts, forKey: "showPorts") } }
 
     // MARK: Notch
     @Published var recallMinutes: Int { didSet { d.set(recallMinutes, forKey: "recallMinutes") } }
@@ -95,6 +97,7 @@ final class Settings: ObservableObject {
         bufferRetentionDays = d.object(forKey: "bufferRetentionDays") as? Int ?? 7
         clearBufferAtEndOfDay = d.object(forKey: "clearBufferAtEndOfDay") as? Bool ?? false
         scanQRInImages = d.object(forKey: "scanQRInImages") as? Bool ?? true
+        showPorts = d.object(forKey: "showPorts") as? Bool ?? true
         recallMinutes = d.object(forKey: "recallMinutes") as? Int ?? 30
         defaultModuleRaw = d.string(forKey: "defaultModuleRaw") ?? Module.tasks.rawValue
         openMediaOnHover = d.object(forKey: "openMediaOnHover") as? Bool ?? true

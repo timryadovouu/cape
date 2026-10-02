@@ -241,7 +241,7 @@ struct ToolsPanel: View {
     let modules: AppModules
 
     var body: some View {
-        if state.showingPorts {
+        if state.showingPorts && settings.showPorts {
             PortsPage(ports: modules.ports) { state.showingPorts = false }
         } else {
             grid
@@ -259,7 +259,9 @@ struct ToolsPanel: View {
                 ToggleTile(name: String(localized: "QR in images"), detail: String(localized: "Adds links from screenshots"),
                            icon: "qrcode.viewfinder", isOn: $settings.scanQRInImages)
             }
-            PortsBar(ports: modules.ports) { state.showingPorts = true }
+            if settings.showPorts {
+                PortsBar(ports: modules.ports) { state.showingPorts = true }
+            }
             Spacer(minLength: 0)
             Button { modules.settingsWindow.show(.tools) } label: {
                 Text("Set a shortcut for any tool in Settings › Tools")

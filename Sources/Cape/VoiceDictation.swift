@@ -37,6 +37,10 @@ final class VoiceDictation: ObservableObject, @unchecked Sendable {
     /// hint when missing) and the Settings download/delete controls.
     var modelDownloaded: Bool { Transcriber.isModelDownloaded(settings.voiceModel) }
 
+    /// Dictation was asked for (a key) but the model isn't downloaded yet — the
+    /// notch says so and Settings › Voice opens on its Download button.
+    var onNeedsModel: (() -> Void)?
+
     private let settings: Settings
     private let todo: TodoStore
     private var engine = AVAudioEngine()
@@ -79,6 +83,7 @@ final class VoiceDictation: ObservableObject, @unchecked Sendable {
     private func holdStart() {
         holdActive = true
         guard status == .idle else { return }
+        guard modelDownloaded else { onNeedsModel?(); return }
         startedByHold = true
         requestAndStart(fromHold: true)
     }
@@ -115,7 +120,11 @@ final class VoiceDictation: ObservableObject, @unchecked Sendable {
 
     func toggle() {
         switch status {
-        case .idle: requestAndStart()
+        case .idle:
+            // No model yet: say so, rather than record and then quietly fetch
+            // hundreds of megabytes.
+            guard modelDownloaded else { onNeedsModel?(); return }
+            requestAndStart()
         case .recording: stop()
         case .transcribing, .downloading, .loading: break   // busy — ignore
         }
@@ -137,16 +146,47 @@ final class VoiceDictation: ObservableObject, @unchecked Sendable {
         let model = settings.voiceModel
         downloadProgress = 0
         status = .downloading
-        Task { [weak self] in
+        downloadRun += 1
+        let run = downloadRun
+        downloadTask = Task { [weak self] in
             _ = await Transcriber.prepare(model: model) { fraction in
                 DispatchQueue.main.async {
-                    self?.downloadProgress = fraction
-                    self?.status = fraction < 1.0 ? .downloading : .loading
+                    guard let self, self.downloadRun == run else { return }   // cancelled meanwhile
+                    self.downloadProgress = fraction
+                    self.status = fraction < 1.0 ? .downloading : .loading
                 }
             }
-            DispatchQueue.main.async { self?.status = .idle }
+            DispatchQueue.main.async {
+                guard let self, self.downloadRun == run else { return }
+                self.downloadTask = nil
+                self.status = .idle
+            }
         }
     }
+
+    /// Stop a model download: the network stops, the half-downloaded files are
+    /// removed (so they can't pass for a model), and the next download starts
+    /// over. Only while downloading — preparing a downloaded model can't be cut short.
+    func cancelDownload() {
+        guard status == .downloading, let task = downloadTask else { return }
+        downloadRun += 1                 // late progress from the cancelled run is ignored
+        task.cancel()
+        downloadTask = nil
+        downloadProgress = 0
+        status = .idle
+        let folder = Transcriber.modelFolder(settings.voiceModel)
+        // …and the downloader's own half-files for it.
+        let partials = folder.deletingLastPathComponent()
+            .appendingPathComponent(".cache/huggingface/download/\(folder.lastPathComponent)")
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 1.5) {
+            try? FileManager.default.removeItem(at: folder)
+            try? FileManager.default.removeItem(at: partials)
+            DispatchQueue.main.async { [weak self] in self?.objectWillChange.send() }
+        }
+    }
+
+    private var downloadTask: Task<Void, Never>?
+    private var downloadRun = 0
 
     /// Warm the model in the background at launch so the first dictation isn't slow
     /// (loading the CoreML model takes a few seconds, especially right after a

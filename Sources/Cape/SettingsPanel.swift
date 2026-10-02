@@ -491,6 +491,8 @@ struct SettingsView: View {
                     Text("\(Int(voice.downloadProgress * 100))%")
                         .font(.caption).monospacedDigit()
                         .foregroundStyle(.secondary)
+                    Button("Cancel") { voice.cancelDownload() }
+                        .help("Stop the download — what came so far is removed")
                 }
             } else if Transcriber.isModelDownloaded(settings.voiceModel) {
                 HStack {
@@ -568,6 +570,14 @@ struct SettingsView: View {
             Text("Shortcuts")
         } footer: {
             Text("Global shortcuts need ⌘, ⌥ or ⌃. While recording, Esc cancels and ⌫ clears. No extra permissions needed.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+        Section {
+            Toggle("Show Ports on the Tools page", isOn: $settings.showPorts)
+        } header: {
+            Text("Ports")
+        } footer: {
+            Text("What's running on localhost — dev servers, Jupyter — with open and stop. For developers; off, it isn't checked at all.")
                 .font(.caption).foregroundStyle(.secondary)
         }
         Section {

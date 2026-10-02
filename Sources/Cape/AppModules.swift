@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 
 /// Container for all module managers, created once and shared with the views.
@@ -18,6 +19,7 @@ final class AppModules {
     let updater: Updater
     let scrollReverser: ScrollReverser
     let shell: ShellIntegration
+    private var subs: [AnyCancellable] = []
     lazy var settingsWindow = SettingsWindowController(settings: settings, buffer: buffer, claude: claude,
                                                        voice: voice, updater: updater, shell: shell)
 
@@ -36,6 +38,18 @@ final class AppModules {
         updater = Updater(settings: settings)
         scrollReverser = ScrollReverser(settings: settings)
         shell = ShellIntegration(settings: settings)
+
+        // What's switched off doesn't run at all: Screen Time (time and battery)
+        // with its tab, Claude with "Track Claude Code sessions", and a turned-off
+        // Pomodoro tab cancels a running timer, so its island goes too.
+        subs.append(settings.$disabledModules.sink { [weak self] disabled in
+            guard let self else { return }
+            let screenTime = !disabled.contains(Module.screenTime.rawValue)
+            usage.setActive(screenTime)
+            energy.setActive(screenTime)
+            if disabled.contains(Module.timer.rawValue), pomodoro.isActive { pomodoro.cancel() }
+        })
+        subs.append(settings.$trackClaude.sink { [weak self] on in self?.claude.setActive(on) })
     }
 
     /// Shared support directory: ~/Library/Application Support/Cape
