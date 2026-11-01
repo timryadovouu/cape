@@ -4,6 +4,49 @@ All notable changes to Cape are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.5.3] — 2026-11-01
+
+### Changed
+- **`cape done` drops a strip under the notch** — like the dictation one: ✓ or
+  ✗, the command (long ones shortened in the middle) and how long it took. It
+  used to flash in the left island, where a long command like
+  `poetry add …` ran past the window's edge and showed with a cut-off, square
+  corner. The strip leaves after 3 seconds, stays while hovered, and a click
+  brings back the terminal it came from (Terminal, iTerm2, Warp, VS Code…);
+  opening the notch puts it away. The music and Claude islands stay where they are.
+- **The buffer lists all of today and yesterday** — it showed only the 20
+  latest copies, so on a busy day the morning's were in Finder only. Now every
+  copy since yesterday is there (older days still fill in up to 20), and the
+  list loads its rows as you scroll. Each day's title sits centered on a coral
+  line, so you see where yesterday begins.
+- **A new timer dial** — a ring of 60 ticks on a dark glass disc, like a
+  kitchen timer, going dark clockwise as the time runs; the countdown in
+  monospaced digits. The presets, Start, Reset and Skip beside it are a compact
+  column in the rail's rounded-square shape (the presets were capsules).
+- **Quit is a ⏻ you hold** — the bright red Quit button was the loudest thing in
+  the panel. Now it's a quiet tile beside the gear: hold it and a red ring
+  closes around the symbol, then Cape quits. A stray click does nothing.
+- **One Clawd** — however many sessions finish while you're away, one Clawd
+  sits in the island (it used to be one per session, up to four side by side).
+  He stays while any of them is unseen.
+- **Clawd waits until you open each session** — with two or more sessions
+  finished in one app, opening one from the list (or switching to the app) sent
+  Clawd home, and with him the island, so the other sessions were out of reach.
+  Now opening one from the list counts only for that one, and switching to the
+  app counts only when it has a single finished session. On by default;
+  *Settings › Claude* has the switch for the old way.
+- **The "Claude finished" sound plays for each session** — it rang only when
+  the last running session stopped, so with two at once you never heard the
+  first one finish. Now each finished session rings (two at the same moment ring
+  once), quiet while you're in that session's app — the terminal or the Claude
+  app — and, as before, during Focus unless you allow it.
+- **English examples in the English interface** — the new-task field, the tour,
+  Tips and Settings › Tasks suggested Russian phrases (“через 20 минут”) in
+  English; now “at 3pm”, “in 20 minutes”. The Russian interface keeps its own.
+- **A short README** — what Cape does, screenshots and how to install, on one
+  screen; everything else moved to a guide ([English](https://github.com/timryadovouu/cape/blob/main/docs/guide.md) ·
+  [Русский](https://github.com/timryadovouu/cape/blob/main/docs/guide.ru.md)).
+
 ## [0.5.2] — 2026-10-02
 
 ### Added
@@ -380,6 +423,7 @@ Initial public beta.
 - A standalone **Settings** window, Launch at login, and GitHub Actions CI +
   releases.
 
+[0.5.3]: https://github.com/timryadovouu/cape/releases/tag/v0.5.3
 [0.5.2]: https://github.com/timryadovouu/cape/releases/tag/v0.5.2
 [0.5.1]: https://github.com/timryadovouu/cape/releases/tag/v0.5.1
 [0.5.0]: https://github.com/timryadovouu/cape/releases/tag/v0.5.0

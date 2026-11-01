@@ -152,7 +152,7 @@ struct TourCaption: View {
         case .module(.timer):
             Text("Pomodoro with a countdown beside the notch — hover it for pause / next / cancel without opening the panel.")
         case .module(.tasks):
-            Text("Write the time in words — “call mom at 15:00”, “через 20 минут” — and a bell rings when it's due. The 🔔 on a task opens its card with a calendar.")
+            Text("Write the time in words — “call mom at 3pm”, “in 20 minutes” — and a bell rings when it's due. The 🔔 on a task opens its card with a calendar.")
         case .module(.buffer):
             Text("Everything you copy lands here: click to copy again, drag out, ⭐ to pin. 🎙 Dictation too — start with “note” or “заметка” and it goes to Tasks instead, time and all: “note call mom at 3pm”.")
         case .module(.screenTime):
@@ -237,7 +237,7 @@ struct TourPage: View {
                 legend("timer", "Timer", "hover: pause / next / cancel")
                 legend(nil, "Clawd", "a session finished while you were away — click to go to it")
                 legend("bell.fill", "Reminder", "a task is due — hover to open Tasks")
-                legend("doc.on.clipboard", "Flashes", "copy, picked color, QR link, cape done")
+                legend("doc.on.clipboard", "Flashes", "copy, picked color, QR link")
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

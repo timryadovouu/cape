@@ -320,7 +320,7 @@ struct SettingsView: View {
             tip("doc.on.clipboard", "Buffer",
                 "Everything you copy is kept as a file: click to copy again, drag it out, ⭐ to pin. QR codes in copied screenshots become links.")
             tip("bell", "Times in words",
-                "Write “call mom at 15:00” or “через 20 минут” in a task — the time becomes a reminder.")
+                "Write “call mom at 3pm” or “in 20 minutes” in a task — the time becomes a reminder.")
             tip("mic", "Dictation",
                 "Hold 🌐 Fn or right ⌥ to talk, or double-tap ⌥ — set it up in Settings › Voice.")
             tip("terminal", "cape done",
@@ -408,7 +408,7 @@ struct SettingsView: View {
         } header: {
             Text("Reminders")
         } footer: {
-            Text("Add a time right in the task: “позвонить в 15:00”, “через 20 минут”, “завтра в 9”, “call mom at 3pm” — or pick one with the 🔔 button. It rings beside the notch when due.")
+            Text("Add a time right in the task: “call mom at 3pm”, “in 20 minutes”, “tomorrow 9am” — or pick one with the 🔔 button. It rings beside the notch when due.")
                 .font(.caption).foregroundStyle(.secondary)
         }
     }
@@ -632,13 +632,17 @@ struct SettingsView: View {
                     Text("He'd leave before falling asleep — pick less than “Clawd waits for you”.")
                         .font(.caption).foregroundStyle(.orange)
                 }
+                Toggle("Clawd waits until you open each session", isOn: $settings.clawdPerSession)
+                    .disabled(!settings.trackClaude)
+                Text("With several sessions finished in one app, switching to it — or opening one of them from the list — counts only for that one: Clawd stays until you've opened the rest. Off: switching to the app sends him home.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
         } footer: {
-            Text("Claude's little critter sits in the island until you look: click it, pick the session in the list, or switch to the app it runs in — he leaves with a happy hop. A session that finishes while its app is in front doesn't call him — you saw it. Waited too long: he dozes off (hover to wake him), and in the end waves and walks home behind the camera; quitting that app sends him home too. Up to four stand side by side, one per session.")
+            Text("Claude's little critter sits in the island until you look: click it, pick the session in the list, or switch to the app it runs in — he leaves with a happy hop. A session that finishes while its app is in front doesn't call him — you saw it. Waited too long: he dozes off (hover to wake him), and in the end waves and walks home behind the camera; quitting that app sends him home too. One Clawd however many sessions finish — he stays while any of them waits.")
                 .font(.caption).foregroundStyle(.secondary)
         }
         Section {
-            Toggle("Play a sound when Claude finishes", isOn: $settings.claudeSound)
+            Toggle("Play a sound when a session finishes", isOn: $settings.claudeSound)
                 .disabled(!settings.trackClaude)
             if settings.claudeSound {
                 SoundPicker(selection: $settings.claudeSoundName)
@@ -647,7 +651,7 @@ struct SettingsView: View {
                         .font(.caption).foregroundStyle(.orange)
                 }
                 Toggle("Play during Do Not Disturb / Focus", isOn: $settings.claudeSoundDuringDND)
-                Toggle("Mute when the Claude app is in front", isOn: $settings.claudeSoundMuteWhenFront)
+                Toggle("Mute while you're in the session's app", isOn: $settings.claudeSoundMuteWhenFront)
             }
         } footer: {
             if !settings.trackClaude {
@@ -831,12 +835,12 @@ private struct TerminalPage: View {
         } header: {
             Text("cape done")
         } footer: {
-            Text("Add “; cape done” to any command: when it ends, the notch flashes ✓ or ✗ with the command and how long it took (Glass on success, Basso on failure).")
+            Text("Add “; cape done” to any command: when it ends, a strip drops down from the notch with ✓ or ✗, the command and how long it took (Glass on success, Basso on failure). Click it to go back to the terminal.")
                 .font(.caption).foregroundStyle(.secondary)
         }
 
         Section {
-            Toggle("Flash after long commands", isOn: $settings.shellAuto)
+            Toggle("Also after long commands", isOn: $settings.shellAuto)
             if settings.shellAuto {
                 Picker("Long means over", selection: $settings.shellAutoSeconds) {
                     Text("10 seconds").tag(10)
@@ -850,7 +854,7 @@ private struct TerminalPage: View {
         } header: {
             Text("Long commands")
         } footer: {
-            Text("The same flash without typing “cape done” — only when you're in another window (not while the terminal is in front), and not for editors, ssh, claude, less, top and the like.")
+            Text("The same strip without typing “cape done” — only when you're in another window (not while the terminal is in front), and not for editors, ssh, claude, less, top and the like.")
                 .font(.caption).foregroundStyle(.secondary)
         }
         .onAppear { installed = shell.isInstalled }

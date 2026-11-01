@@ -246,6 +246,19 @@ final class NotchController {
             panel.ignoresMouseEvents = false
             return
         }
+        // The `cape done` strip stays while hovered, and takes the click.
+        if let zone = shellDoneZone(), zone.contains(mouse) {
+            if !shellDoneHovered {
+                shellDoneHovered = true
+                shellDoneHide?.cancel()
+            }
+            panel.ignoresMouseEvents = false
+            return
+        }
+        if shellDoneHovered {
+            shellDoneHovered = false
+            hideShellDone(after: 1.5)
+        }
         if let zone = claudeIslandZone(), zone.contains(mouse) {
             state.claudePeek = true
             panel.ignoresMouseEvents = false
@@ -317,6 +330,39 @@ final class NotchController {
         return NSRect(x: left - 10, y: bottom, width: right - left + 20, height: f.maxY - bottom + 40)
     }
 
+    // MARK: - `cape done` strip
+
+    private var shellDoneHide: DispatchWorkItem?
+    private var shellDoneHovered = false
+
+    private func showShellDone(_ done: ShellIntegration.Done) {
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
+            state.shellDone = ShellDone(ok: done.ok, command: done.command, seconds: done.seconds, app: done.app)
+        }
+        if !shellDoneHovered { hideShellDone(after: 3) }
+    }
+
+    private func hideShellDone(after seconds: TimeInterval) {
+        shellDoneHide?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) { self?.state.shellDone = nil }
+        }
+        shellDoneHide = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: work)
+    }
+
+    /// The strip itself, below the brow — hovering the brow above it still
+    /// opens the notch.
+    private func shellDoneZone() -> NSRect? {
+        guard state.shellDone != nil, !state.expanded, !state.voiceNotice, !state.claudePeek else { return nil }
+        let f = metrics.screenFrame
+        let right = metrics.centerX + metrics.notchWidth / 2 + claudeSlotW
+        let left = mediaLeftEdge()
+        let top = f.maxY - metrics.notchHeight
+        let bottom = top - ShellDoneStrip.height - 6
+        return NSRect(x: left - 6, y: bottom, width: right - left + 12, height: top - bottom)
+    }
+
     /// When the cursor came onto the music island (for the open-Media delay).
     private var mediaHoverStart: Date?
 
@@ -329,10 +375,10 @@ final class NotchController {
     private var claudeIslandShown: Bool { claudeIslandVisible && !modules.claude.sessions.isEmpty }
 
     /// Room taken right of the camera before the timer: the Claude island, or the
-    /// empty one that keeps the brow symmetric under the dictation strip.
+    /// empty one that keeps the brow symmetric under a strip (dictation, `cape done`).
     private var claudeSlotW: CGFloat {
         claudeIslandVisible ? claudeIslandW
-            : (state.voiceNotice && !state.expanded ? NotchRootView.islandWidth : 0)
+            : ((state.voiceNotice || state.shellDone != nil) && !state.expanded ? NotchRootView.islandWidth : 0)
     }
 
     /// Its width: the dot's island, or wider for three or four Clawds.
@@ -370,7 +416,8 @@ final class NotchController {
         let hasIsland = (m.source != .none || m.isPlaying) && modules.settings.isEnabled(.media)
         if let alert = state.alert { return notchLeft - NotchRootView.alertWidth(alert) }
         // No left island: the open list gets an empty one, mirroring Claude's.
-        return notchLeft - (hasIsland || state.claudePeek || state.voiceNotice ? NotchRootView.islandWidth : 0)
+        let strip = state.claudePeek || state.voiceNotice || state.shellDone != nil
+        return notchLeft - (hasIsland || strip ? NotchRootView.islandWidth : 0)
     }
 
     /// Screen rect of the collapsed timer pill (grown to include the controls
@@ -439,7 +486,7 @@ final class NotchController {
     private func commandFinished(_ done: ShellIntegration.Done) {
         if done.auto, let app = done.app,
            NSWorkspace.shared.frontmostApplication?.bundleIdentifier == app { return }
-        state.flashDone(ok: done.ok, command: done.command, seconds: done.seconds)
+        showShellDone(done)
         if modules.settings.shellSound {
             let sound = NSSound(named: done.ok ? "Glass" : "Basso")
             doneChime = sound
@@ -463,6 +510,10 @@ final class NotchController {
     private func expand(to module: Module? = nil) {
         guard !state.expanded else { return }
         state.claudePeek = false
+        // Opening the notch is a look: the `cape done` strip has done its job.
+        shellDoneHide?.cancel()
+        shellDoneHovered = false
+        state.shellDone = nil
         panel.ignoresMouseEvents = false
         state.prepareForExpand()   // restore last module (or reset after 30 min)
         if let module { state.selectModule(module) }

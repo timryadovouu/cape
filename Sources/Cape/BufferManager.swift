@@ -24,7 +24,9 @@ final class BufferManager: ObservableObject {
     @Published private(set) var recent: [BufferItem] = []
 
     private(set) var rootURL: URL
-    let maxRecent = 20
+    /// Today's and yesterday's copies are all listed; older days only fill the
+    /// list up to this many, so a quiet day still shows some history.
+    let minRecent = 20
 
     /// Fired on a new external copy — used for the "brow widens left" effect.
     var onNewItem: ((BufferItem) -> Void)?
@@ -291,7 +293,8 @@ final class BufferManager: ObservableObject {
         return .file
     }
 
-    /// Rescan the retained day folders for recent items (newest first).
+    /// Rescan the retained day folders for recent items (favorites, then newest
+    /// first): everything since yesterday, and older ones up to `minRecent`.
     func reloadItems() {
         let fm = FileManager.default
         guard let days = try? fm.contentsOfDirectory(at: rootURL,
@@ -309,7 +312,11 @@ final class BufferManager: ObservableObject {
         all.sort { a, b in
             a.isFavorite == b.isFavorite ? a.date > b.date : a.isFavorite
         }
-        let newItems = Array(all.prefix(maxRecent))
+        let cal = Calendar.current
+        let since = cal.date(byAdding: .day, value: -1, to: cal.startOfDay(for: Date()))!
+        let newItems = all.enumerated()
+            .filter { i, item in item.isFavorite || item.date >= since || i < minRecent }
+            .map(\.element)
         // Only republish when the on-disk set actually changed (so external
         // deletions/additions show up, but we don't churn the UI otherwise).
         if newItems.map(\.id) != recent.map(\.id) {

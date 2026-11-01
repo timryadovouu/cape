@@ -156,16 +156,7 @@ struct ExpandedPanel: View {
                         .help("Update available — see Settings")
                 }
             }
-            Button { NSApp.terminate(nil) } label: {
-                Text("Quit")
-                    .font(.system(size: 11, weight: .bold))
-                    .frame(height: 32)
-                    .padding(.horizontal, 12)
-                    .background(Color.capeRed)
-                    .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
-            }
-            .buttonStyle(.plain)
-            .help("Quit Cape")
+            HoldToQuitButton()
         }
     }
 
@@ -225,5 +216,40 @@ struct ExpandedPanel: View {
         }
         .buttonStyle(.plain)
         .help(help)
+    }
+}
+
+/// ⏻ in the rail, styled like the gear: hold it and a red ring closes around
+/// the symbol; once it's full, Cape quits. Let go early and nothing happens —
+/// no quitting by a stray click.
+private struct HoldToQuitButton: View {
+    @State private var progress: CGFloat = 0
+    private static let hold: Double = 0.8
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .trim(from: 0, to: progress)
+                .stroke(Color.capeRed, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .frame(width: 22, height: 22)
+            Image(systemName: "power")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(Color.capeRed)
+        }
+        .frame(width: 40, height: 32)
+        .background(
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .fill(Color.capeRed.opacity(progress > 0 ? 0.24 : 0.14))
+        )
+        .contentShape(Rectangle())
+        .onLongPressGesture(minimumDuration: Self.hold, maximumDistance: 30) {
+            NSApp.terminate(nil)
+        } onPressingChanged: { pressing in
+            withAnimation(pressing ? .linear(duration: Self.hold) : .easeOut(duration: 0.2)) {
+                progress = pressing ? 1 : 0
+            }
+        }
+        .help(String(localized: "Hold to quit Cape"))
     }
 }

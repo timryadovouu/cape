@@ -164,9 +164,10 @@ enum Screenshots {
         configure?(state)
         let metrics = NotchMetrics.current()
         let peekH = name.hasPrefix("voice") ? VoiceNoticePanel.height
+            : name.hasPrefix("done") ? ShellDoneStrip.height
             : ClaudePeekPanel.height(sessions: modules.claude.sessions, permissions: modules.claude.permissions)
         let size = NSSize(width: metrics.notchWidth + 2 * NotchRootView.islandWidth
-                            + (name == "claude" ? 60 : name.hasPrefix("voice") ? 520 : 140),
+                            + (name == "claude" ? 60 : name.hasPrefix("voice") || name.hasPrefix("done") ? 520 : 140),
                           height: metrics.notchHeight + NotchRootView.topOvershoot + peekH + 24)
         let root = NotchRootView(state: state, pomodoro: modules.pomodoro, media: modules.media,
                                  claude: modules.claude, settings: modules.settings, todo: modules.todo,
@@ -277,8 +278,19 @@ enum Screenshots {
                                 ("voiceNeeds", .needsModel), ("voiceDownloading", .downloading(0.42)),
                                 ("voicePreparing", .preparing), ("voiceReady", .ready),
                             ]
+                            // Then the `cape done` strip: a long command that passed, one that failed.
+                            let dones: [(String, ShellDone)] = [
+                                ("doneOk", ShellDone(ok: true, command: "poetry add httpx pydantic rich typer", seconds: 74)),
+                                ("doneFailed", ShellDone(ok: false, command: "swift test", seconds: 12)),
+                            ]
+                            func shootDone(_ i: Int) {
+                                guard i < dones.count else { NSApp.terminate(nil); return }
+                                captureClaudePeek(modules, to: out, name: dones[i].0, open: false, configure: { s in
+                                    s.shellDone = dones[i].1
+                                }) { shootDone(i + 1) }
+                            }
                             func shoot(_ i: Int) {
-                                guard i < phases.count else { NSApp.terminate(nil); return }
+                                guard i < phases.count else { shootDone(0); return }
                                 captureClaudePeek(modules, to: out, name: phases[i].0, open: false, configure: { s in
                                     s.voiceNotice = true
                                     s.voiceNoticeDemo = phases[i].1

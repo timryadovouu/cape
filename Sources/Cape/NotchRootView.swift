@@ -65,18 +65,24 @@ struct NotchRootView: View {
     }
     private var showBlob: Bool { settings.trackClaude && (claude.anyWorking || claude.needsYou) }
     private var showClawds: Bool { !showBlob && settings.trackClaude && !claude.clawds.isEmpty }
-    /// With the dictation strip down and no Claude island, an empty one keeps the
-    /// brow symmetric around the camera.
-    private var claudeExt: CGFloat { showClaude ? claudeW : (showNotice ? Self.islandWidth : 0) }
+    /// With a strip down (dictation, `cape done`) and no Claude island, an empty
+    /// one keeps the brow symmetric around the camera.
+    private var claudeExt: CGFloat { showClaude ? claudeW : (showNotice || showDone ? Self.islandWidth : 0) }
 
     /// The sessions list dropped down from the Claude island (on hover).
     private var showPeek: Bool { showClaude && state.claudePeek && !claude.sessions.isEmpty }
     /// The dictation strip ("needs a model" → download → ready) — under the brow,
     /// unless the Claude list is open.
     private var showNotice: Bool { !state.expanded && state.voiceNotice && !showPeek }
+    /// A terminal command finished — after the other two, which it waits behind.
+    private var showDone: Bool { !state.expanded && state.shellDone != nil && !showPeek && !showNotice }
     /// Whatever hangs below the brow, and how tall it is.
-    private var showDrop: Bool { showPeek || showNotice }
-    private var dropH: CGFloat { showPeek ? peekContentH : (showNotice ? VoiceNoticePanel.height : 0) }
+    private var showDrop: Bool { showPeek || showNotice || showDone }
+    private var dropH: CGFloat {
+        showPeek ? peekContentH
+            : showNotice ? VoiceNoticePanel.height
+            : showDone ? ShellDoneStrip.height : 0
+    }
     private var peekContentH: CGFloat {
         ClaudePeekPanel.height(sessions: claude.sessions, permissions: claude.permissions)
     }
@@ -108,7 +114,7 @@ struct NotchRootView: View {
         if playing || paused { return eqW }   // same width so ⏯ doesn't shift the notch
         // With the Claude list open and nothing on the left, an empty island
         // mirrors Claude's so the brow and the list stay centered on the camera.
-        if showPeek || showNotice { return Self.islandWidth }
+        if showDrop { return Self.islandWidth }
         return 0
     }
 
@@ -146,8 +152,8 @@ struct NotchRootView: View {
                 .shadow(color: .black.opacity(state.expanded ? 0.55 : 0), radius: 16, y: 8)
                 .frame(width: islandW, height: islandH)
                 .offset(x: centerShift)
-            // The Claude sessions list — or the dictation strip — grows down out of
-            // the brow (hidden under it otherwise).
+            // The Claude sessions list — or the dictation / `cape done` strip — grows
+            // down out of the brow (hidden under it otherwise).
             UnevenRoundedRectangle(cornerRadii: .init(bottomLeading: showDrop ? 18 : radius,
                                                       bottomTrailing: showDrop ? 18 : radius),
                                    style: .continuous)
@@ -166,6 +172,11 @@ struct NotchRootView: View {
                     .frame(width: peekW, height: VoiceNoticePanel.height)
                     .offset(x: peekShift, y: islandH)
                     .transition(Self.panelSwap)
+            } else if showDone, let done = state.shellDone {
+                ShellDoneStrip(done: done) { state.openShellDone() }
+                    .frame(width: peekW, height: ShellDoneStrip.height)
+                    .offset(x: peekShift, y: islandH)
+                    .transition(Self.panelSwap)
             }
             // The content is a separate layer laid out in its *final* place, so it
             // never rides along with that sideways travel.
@@ -180,6 +191,7 @@ struct NotchRootView: View {
         .animation(.spring(response: 0.3, dampingFraction: 0.78), value: showClaude)
         .animation(.spring(response: 0.28, dampingFraction: 0.84), value: showPeek)
         .animation(.spring(response: 0.28, dampingFraction: 0.84), value: showNotice)
+        .animation(.spring(response: 0.28, dampingFraction: 0.84), value: showDone)
         .animation(.spring(response: 0.28, dampingFraction: 0.84), value: peekContentH)
         .animation(.spring(response: 0.34, dampingFraction: 0.7), value: reminderText)
         .animation(.spring(response: 0.34, dampingFraction: 0.84), value: state.tall)

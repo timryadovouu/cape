@@ -88,6 +88,9 @@ final class Settings: ObservableObject {
     @Published var claudeMascotMinutes: Int { didSet { d.set(claudeMascotMinutes, forKey: "claudeMascotMinutes") } }
     /// Clawd dozes off when a finished session has waited this long, in minutes.
     @Published var claudeMascotSleepMinutes: Int { didSet { d.set(claudeMascotSleepMinutes, forKey: "claudeMascotSleepMinutes") } }
+    /// Clawd waits for every finished session: with several in one app,
+    /// switching to it (or opening one from the list) doesn't count for the rest.
+    @Published var clawdPerSession: Bool { didSet { d.set(clawdPerSession, forKey: "clawdPerSession") } }
 
     private let d = UserDefaults.standard
 
@@ -151,6 +154,7 @@ final class Settings: ObservableObject {
         claudeMascot = d.object(forKey: "claudeMascot") as? Bool ?? true
         claudeMascotMinutes = d.object(forKey: "claudeMascotMinutes") as? Int ?? 60
         claudeMascotSleepMinutes = d.object(forKey: "claudeMascotSleepMinutes") as? Int ?? 5
+        clawdPerSession = d.object(forKey: "clawdPerSession") as? Bool ?? true
         launchAtLogin = (SMAppService.mainApp.status == .enabled)
     }
 

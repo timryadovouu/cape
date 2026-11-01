@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// A transient message shown as the "brow widens to the left" effect.
@@ -7,6 +8,17 @@ struct NotchAlert: Equatable {
     var color: Color
     /// Set for the charging flash: battery level 0…1 (drawn as `ChargingBadge`).
     var battery: Double? = nil
+}
+
+/// A finished terminal command, for the `cape done` strip.
+struct ShellDone: Equatable {
+    var ok: Bool
+    var command: String
+    var seconds: Int
+    /// The terminal's bundle id — a click on the strip brings it to the front.
+    var app: String?
+    /// Each report is new, even for the same command run twice.
+    var id = UUID()
 }
 
 /// UI state of the notch: expansion, the current module (remembered across
@@ -34,6 +46,9 @@ final class NotchState: ObservableObject {
     @Published var voiceNoticeReady = false
     /// Screenshot tool: show the strip in this phase instead of the real one.
     var voiceNoticeDemo: VoiceNoticePanel.Phase?
+    /// A terminal command just finished (`cape done` / a long one): its strip
+    /// under the brow, until it times out or is clicked.
+    @Published var shellDone: ShellDone?
     /// The welcome tour's current step, while it's showing (keeps the notch open).
     @Published var tourStep: Int?
     /// The music island was clicked (play / pause) — don't open Media from that hover.
@@ -129,17 +144,14 @@ final class NotchState: ObservableObject {
         show(NotchAlert(icon: "qrcode", text: QRScanner.label(first) + more, color: .coral), duration: 2.8)
     }
 
-    /// A terminal command finished (`cape done` / a long command): ✓ or ✗,
-    /// the command and how long it took.
-    func flashDone(ok: Bool, command: String, seconds: Int) {
-        let name = command.count > 26 ? String(command.prefix(25)) + "…" : command
-        let time = (60..<3600).contains(seconds) ? String(localized: "\(seconds / 60)m \(seconds % 60)s")
-            : formatDuration(seconds)
-        let text = [name, seconds > 0 ? time : ""].filter { !$0.isEmpty }.joined(separator: " · ")
-        show(NotchAlert(icon: ok ? "checkmark.circle.fill" : "xmark.circle.fill",
-                        text: text.isEmpty ? (ok ? String(localized: "Done") : String(localized: "Failed")) : text,
-                        color: ok ? Color(red: 0.3, green: 0.85, blue: 0.45) : .capeRed),
-             duration: 4)
+    /// The `cape done` strip was clicked: its terminal to the front (if it's
+    /// still running), and the strip away.
+    func openShellDone() {
+        if let id = shellDone?.app,
+           let app = NSRunningApplication.runningApplications(withBundleIdentifier: id).first {
+            app.activate()
+        }
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) { shellDone = nil }
     }
 
     /// Shown when a Pomodoro phase changes (rest starts / next focus starts).

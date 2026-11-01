@@ -50,7 +50,7 @@ struct TodoPanel: View {
 
     private var addField: some View {
         HStack(spacing: 8) {
-            TextField("New task… add a time: “в 15:00”, “через 20 мин”", text: $draft)
+            TextField("New task… add a time: “at 3pm”, “in 20 min”", text: $draft)
                 .textFieldStyle(.plain)
                 .font(.system(size: 12))
                 .onSubmit(commit)

@@ -20,7 +20,7 @@ and credited to you in the changelog, if you like.
 - **Built in the open.** Every release is built by GitHub Actions from the
   tagged source; the build logs are public.
 - **Signed.** Releases are signed with the project's own code-signing
-  certificate (not notarized by Apple — see the README).
+  certificate (not notarized by Apple — see [the guide](docs/guide.md#signing--security)).
 - **Verified on update.** The in-app updater installs a download only if it's
   signed by the same certificate as the running app; anything else is rejected.
 
@@ -31,5 +31,5 @@ to the update check and download (GitHub Releases), Spotify cover images, and th
 one-time dictation model download. Optional integrations write to files outside
 Cape's own folder only when you turn them on: Claude Code hooks in
 `~/.claude/settings.json` and one line in `~/.zshrc` for `cape done` — both
-backed up first. The README's *Where data lives* and *Permissions* sections have
-the details.
+backed up first. The guide's [Where data lives](docs/guide.md#where-data-lives)
+and [Permissions](docs/guide.md#permissions) sections have the details.

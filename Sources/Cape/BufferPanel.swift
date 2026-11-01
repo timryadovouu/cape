@@ -16,7 +16,8 @@ struct BufferPanel: View {
                 Spacer()
             } else {
                 ScrollView {
-                    VStack(spacing: 6) {
+                    // Lazy: a busy day is hundreds of rows, each reading its file.
+                    LazyVStack(spacing: 6) {
                         ForEach(sections, id: \.title) { section in
                             sectionHeader(section.title)
                             ForEach(section.items) { item in
@@ -107,20 +108,23 @@ struct BufferPanel: View {
 
     private static let pinnedTitle = String(localized: "Pinned")
 
+    /// The title in the middle of a coral line — where each day begins.
     private func sectionHeader(_ title: String) -> some View {
-        HStack(spacing: 4) {
-            if title == Self.pinnedTitle {
-                Image(systemName: "star.fill").font(.system(size: 8))
-                    .foregroundStyle(Color(red: 1.0, green: 0.78, blue: 0.28))
-            }
+        HStack(spacing: 8) {
+            dayLine
             Text(title.uppercased())
                 .font(.system(size: 9, weight: .semibold))
                 .tracking(0.6)
                 .foregroundStyle(.white.opacity(0.4))
-            Spacer()
+                .fixedSize()
+            dayLine
         }
-        .padding(.leading, 4)
+        .padding(.horizontal, 4)
         .padding(.top, 2)
+    }
+
+    private var dayLine: some View {
+        Capsule().fill(Color.coral.opacity(0.75)).frame(height: 2)
     }
 
     /// "Today" / "Yesterday" / "Mon, 22 Sep".
