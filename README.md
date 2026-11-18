@@ -32,7 +32,8 @@
 - **Music**: Spotify and cmus, with covers and seeking. F7–F9 work for cmus too.
 - **Clipboard**: everything you copy is kept as files, day by day. Pin, drag out,
   and links from QR codes in screenshots.
-- **Tasks with reminders**: write "call mom at 3pm" and it rings at 3pm.
+- **Tasks with reminders**: write "call mom at 3pm", and at 3pm it drops down from
+  the notch: ✓ done or ⏰ later.
 - **Dictation**: hold a key, talk, and the text is on your clipboard. Whisper runs
   on your Mac, nothing goes online.
 - **Claude Code**: see which sessions are working or waiting for you, and allow or
@@ -40,7 +41,8 @@
 - **Terminal**: add `; cape done` to a long command and get ✓ or ✗ when it's done.
 - **Pomodoro and Screen Time**, including how much battery each app used.
 - **Tools**: color picker, a list of running dev servers by port, keyboard cleaning
-  mode, reverse mouse wheel.
+  mode, reverse mouse wheel, your IP and country (off until you want it). Hold a
+  tile to rearrange them.
 
 English or Russian interface. Don't need something? Turn it off and it doesn't run at all.
 

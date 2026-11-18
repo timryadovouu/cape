@@ -156,3 +156,136 @@ struct ShellDoneStrip: View {
             : formatDuration(done.seconds)
     }
 }
+
+/// A task came due: the ringing bell, its title (+N when several ring) and its
+/// time, dropped down from the brow like `cape done`. Hovered, the time gives
+/// way to ✓ (done) and ⏰ (ring again in a few minutes); a click elsewhere on it
+/// just puts it away (the tasks stay, under Overdue). Both buttons act on the
+/// first ringing task — the next slides in.
+struct ReminderStrip: View {
+    let ringing: [TodoItem]
+    let hovered: Bool
+    let snoozeMinutes: Int
+    var onDone: () -> Void
+    var onSnooze: () -> Void
+    var onDismiss: () -> Void
+
+    static let height: CGFloat = 34
+
+    private var first: TodoItem? { ringing.first }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            HStack(spacing: 8) {
+                RingingBell()
+                Text(verbatim: first?.title ?? "")
+                    .font(.system(size: 11.5, weight: .semibold))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .id(first?.id)
+                    .transition(.opacity)
+                if ringing.count > 1 {
+                    Text(verbatim: "+\(ringing.count - 1)")
+                        .font(.system(size: 11, weight: .semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(.white.opacity(0.55))
+                        .fixedSize()
+                }
+                Spacer(minLength: 6)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture(perform: onDismiss)
+            if hovered {
+                HStack(spacing: 4) {
+                    StripButton(symbol: "checkmark", tint: Color(red: 0.3, green: 0.85, blue: 0.45), action: onDone)
+                        .help(Text("Done"))
+                    StripButton(symbol: "alarm.fill", tint: .white, action: onSnooze)
+                        .help(Text("Remind me in \(snoozeMinutes) min"))
+                }
+                .transition(.opacity)
+            } else if let due = first?.due {
+                Text(verbatim: Self.timeLabel(due))
+                    .font(.system(size: 11, weight: .medium))
+                    .monospacedDigit()
+                    .foregroundStyle(.white.opacity(0.55))
+                    .fixedSize()
+                    .transition(.opacity)
+            }
+        }
+        .padding(.leading, 14)
+        .padding(.trailing, hovered ? 7 : 12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .foregroundStyle(.white)
+        .animation(.spring(response: 0.25, dampingFraction: 0.85), value: hovered)
+        .animation(.easeOut(duration: 0.2), value: first?.id)
+    }
+
+    /// "15:00" today, "18 Nov, 15:00" for an older one that rang at launch.
+    static func timeLabel(_ due: Date) -> String {
+        Calendar.current.isDateInToday(due)
+            ? due.formatted(date: .omitted, time: .shortened)
+            : due.formatted(.dateTime.day().month(.abbreviated).hour().minute())
+    }
+}
+
+/// A small rounded button on a strip — like the timer's inline controls.
+private struct StripButton: View {
+    let symbol: String
+    let tint: Color
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(tint)
+                .frame(width: 28, height: 22)
+                .background(Color.white.opacity(0.16))
+                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// Get my IP: the flag and the country, the public IPv4 on the right — dropped
+/// down from the brow like `cape done`. A click copies the IP (the coral clip
+/// flashes on the left).
+struct IPStrip: View {
+    let info: NotchState.MyIP
+    var onTap: () -> Void
+
+    static let height: CGFloat = 34
+
+    var body: some View {
+        HStack(spacing: 8) {
+            switch info {
+            case .loading:
+                Spinner().frame(width: 14, height: 14)
+                Text("Checking your IP…").font(.system(size: 11.5, weight: .medium))
+                Spacer(minLength: 0)
+            case .failed:
+                Image(systemName: "wifi.slash").font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.capeRed)
+                Text("No connection").font(.system(size: 11.5, weight: .medium))
+                Spacer(minLength: 0)
+            case .found(let r):
+                Text(verbatim: r.flag ?? "🌐").font(.system(size: 15))
+                Text(verbatim: r.country ?? String(localized: "Unknown country"))
+                    .font(.system(size: 11.5, weight: .semibold))
+                    .lineLimit(1)
+                Spacer(minLength: 6)
+                Text(verbatim: r.ip)
+                    .font(.system(size: 11.5, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.7))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+        }
+        .padding(.leading, 14)
+        .padding(.trailing, 12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .foregroundStyle(.white)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onTap)
+    }
+}

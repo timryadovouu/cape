@@ -37,7 +37,9 @@ enum Screenshots {
             TodoItem(title: "Call the dentist", due: at(0, 15, 30)),
             TodoItem(title: "Send the invoice", due: at(1, 9, 0)),
             TodoItem(title: "Review the design specs"),
-            TodoItem(title: "Book flights", done: true),
+            TodoItem(title: "Book flights", done: true, doneAt: Date()),
+            TodoItem(title: "Old draft", deletedAt: Date()),
+            TodoItem(title: "Groceries", done: true, deletedAt: Date()),
         ]
         try? JSONEncoder().encode(todos).write(to: dir.appendingPathComponent("todos.json"))
 
@@ -165,9 +167,10 @@ enum Screenshots {
         let metrics = NotchMetrics.current()
         let peekH = name.hasPrefix("voice") ? VoiceNoticePanel.height
             : name.hasPrefix("done") ? ShellDoneStrip.height
+            : name.hasPrefix("remind") ? ReminderStrip.height
             : ClaudePeekPanel.height(sessions: modules.claude.sessions, permissions: modules.claude.permissions)
         let size = NSSize(width: metrics.notchWidth + 2 * NotchRootView.islandWidth
-                            + (name == "claude" ? 60 : name.hasPrefix("voice") || name.hasPrefix("done") ? 520 : 140),
+                            + (name == "claude" ? 60 : name.hasPrefix("voice") || name.hasPrefix("done") || name.hasPrefix("remind") ? 520 : 140),
                           height: metrics.notchHeight + NotchRootView.topOvershoot + peekH + 24)
         let root = NotchRootView(state: state, pomodoro: modules.pomodoro, media: modules.media,
                                  claude: modules.claude, settings: modules.settings, todo: modules.todo,
@@ -284,10 +287,19 @@ enum Screenshots {
                                 ("doneFailed", ShellDone(ok: false, command: "swift test", seconds: 12)),
                             ]
                             func shootDone(_ i: Int) {
-                                guard i < dones.count else { NSApp.terminate(nil); return }
+                                guard i < dones.count else { shootRemind(0); return }
                                 captureClaudePeek(modules, to: out, name: dones[i].0, open: false, configure: { s in
                                     s.shellDone = dones[i].1
                                 }) { shootDone(i + 1) }
+                            }
+                            // Then a due task's strip: as it drops, and hovered (✓ / ⏰).
+                            func shootRemind(_ i: Int) {
+                                guard i < 2 else { NSApp.terminate(nil); return }
+                                modules.todo.ringForDemo(2)
+                                captureClaudePeek(modules, to: out, name: i == 0 ? "remind" : "remindHover",
+                                                  open: false, configure: { s in
+                                    s.reminderHover = i == 1
+                                }) { shootRemind(i + 1) }
                             }
                             func shoot(_ i: Int) {
                                 guard i < phases.count else { shootDone(0); return }

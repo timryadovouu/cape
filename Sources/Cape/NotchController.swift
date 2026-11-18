@@ -77,7 +77,8 @@ final class NotchController {
             guard let self, self.modules.settings.showCharging else { return }
             self.state.flashCharging(level)
         }
-        modules.todo.onReminder = { [weak self] _ in self?.playReminderSound() }
+        modules.todo.onReminder = { [weak self] _ in self?.reminderRang() }
+        state.lookUpIP = { [weak self] in self?.lookUpIP() }
         // Dictation without a model: the strip under the brow, with ⬇ to download.
         modules.voice.onNeedsModel = { [weak self] in self?.showVoiceNotice() }
         voiceSub = modules.voice.$status.sink { [weak self] status in
@@ -89,9 +90,12 @@ final class NotchController {
             self?.modules.system.setActive(open)
         }
         // Global tool shortcuts — (re)registered whenever they change in Settings.
-        shortcutsSub = modules.settings.$toolShortcuts.sink { [weak self] map in
-            self?.registerToolShortcuts(map)
-        }
+        // …and whenever a tool is switched on or off there (off: not registered).
+        shortcutsSub = modules.settings.$toolShortcuts
+            .combineLatest(modules.settings.$disabledTools)
+            .sink { [weak self] map, _ in
+                DispatchQueue.main.async { self?.registerToolShortcuts(map) }
+            }
 
         positionWindow()
         panel.orderFrontRegardless()
@@ -246,6 +250,19 @@ final class NotchController {
             panel.ignoresMouseEvents = false
             return
         }
+        // The Get my IP strip: stays while hovered, a click copies the IP.
+        if let zone = myIPZone(), zone.contains(mouse) {
+            if !myIPHovered {
+                myIPHovered = true
+                myIPHide?.cancel()
+            }
+            panel.ignoresMouseEvents = false
+            return
+        }
+        if myIPHovered {
+            myIPHovered = false
+            if state.myIP != .loading { hideMyIP(after: 1.5) }
+        }
         // The `cape done` strip stays while hovered, and takes the click.
         if let zone = shellDoneZone(), zone.contains(mouse) {
             if !shellDoneHovered {
@@ -259,6 +276,19 @@ final class NotchController {
             shellDoneHovered = false
             hideShellDone(after: 1.5)
         }
+        // The reminder strip: hovering shows ✓ / ⏰ (and keeps it from sliding away).
+        if let zone = reminderStripZone(), zone.contains(mouse) {
+            if !state.reminderHover {
+                state.reminderHover = true
+                reminderRest?.cancel()
+            }
+            panel.ignoresMouseEvents = false
+            return
+        }
+        if state.reminderHover {
+            state.reminderHover = false
+            restReminder(after: 5)
+        }
         if let zone = claudeIslandZone(), zone.contains(mouse) {
             state.claudePeek = true
             panel.ignoresMouseEvents = false
@@ -266,7 +296,7 @@ final class NotchController {
         }
         // The music island (left of the camera): a click toggles play / pause
         // (handled by the view); resting on it a moment opens Media — unless it
-        // was just clicked. A ringing reminder (far right) opens Tasks and silences it.
+        // was just clicked.
         if let zone = mediaIslandZone(), zone.contains(mouse) {
             panel.ignoresMouseEvents = false
             let since = mediaHoverStart ?? Date()
@@ -279,10 +309,7 @@ final class NotchController {
         }
         mediaHoverStart = nil
         state.mediaIslandClicked = false
-        if let zone = reminderZone(), zone.contains(mouse) {
-            modules.todo.dismissRinging()
-            expand(to: .tasks)
-        } else if notchZone.contains(mouse) {
+        if notchZone.contains(mouse) {
             expand()
         } else {
             panel.ignoresMouseEvents = true
@@ -354,12 +381,116 @@ final class NotchController {
     /// The strip itself, below the brow — hovering the brow above it still
     /// opens the notch.
     private func shellDoneZone() -> NSRect? {
-        guard state.shellDone != nil, !state.expanded, !state.voiceNotice, !state.claudePeek else { return nil }
+        guard state.shellDone != nil, !state.expanded, !state.voiceNotice, !state.claudePeek,
+              !(state.myIP != nil && state.myIPInStrip) else { return nil }
         let f = metrics.screenFrame
         let right = metrics.centerX + metrics.notchWidth / 2 + claudeSlotW
         let left = mediaLeftEdge()
         let top = f.maxY - metrics.notchHeight
         let bottom = top - ShellDoneStrip.height - 6
+        return NSRect(x: left - 6, y: bottom, width: right - left + 12, height: top - bottom)
+    }
+
+    // MARK: - Get my IP
+
+    private var myIPHide: DispatchWorkItem?
+    private var myIPHovered = false
+    private var myIPTask: Task<Void, Never>?
+
+    /// Ask for the public IP. With the notch closed (the shortcut) the answer
+    /// hangs under the brow for 4 seconds; open, it shows in the tool's tile.
+    private func lookUpIP() {
+        myIPHide?.cancel()
+        myIPTask?.cancel()
+        state.myIPInStrip = !state.expanded
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) { state.myIP = .loading }
+        myIPTask = Task { @MainActor [weak self] in
+            let result = await IPLookup.fetch()
+            guard let self, !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.2)) {
+                self.state.myIP = result.map { .found($0) } ?? .failed
+            }
+            if self.state.myIPInStrip, !self.myIPHovered { self.hideMyIP(after: 4) }
+        }
+    }
+
+    private func hideMyIP(after seconds: TimeInterval) {
+        myIPHide?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) { self.clearMyIP() }
+        }
+        myIPHide = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: work)
+    }
+
+    private func clearMyIP() {
+        myIPTask?.cancel()
+        state.myIP = nil
+        state.myIPInStrip = false
+    }
+
+    /// The strip itself, below the brow.
+    private func myIPZone() -> NSRect? {
+        guard state.myIP != nil, state.myIPInStrip, !state.expanded, !state.voiceNotice,
+              !state.claudePeek else { return nil }
+        let f = metrics.screenFrame
+        let right = metrics.centerX + metrics.notchWidth / 2 + claudeSlotW
+        let left = mediaLeftEdge()
+        let top = f.maxY - metrics.notchHeight
+        let bottom = top - IPStrip.height - 6
+        return NSRect(x: left - 6, y: bottom, width: right - left + 12, height: top - bottom)
+    }
+
+    // MARK: - Reminder strip
+
+    private var reminderRest: DispatchWorkItem?
+    private var reminderReturn: DispatchWorkItem?
+    /// How long an unanswered reminder stays before it slides away (only with
+    /// "hide it and bring it back" on; otherwise it stays until answered).
+    private static let reminderShowSeconds: TimeInterval = 15
+
+    /// A task's strip is down (or would be, were the notch closed).
+    private var reminderStripUp: Bool { !modules.todo.ringing.isEmpty && !state.reminderHidden }
+
+    /// A task came due — or one that rang came back: the sound, and the strip.
+    private func reminderRang() {
+        playReminderSound()
+        reminderReturn?.cancel()
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) { state.reminderHidden = false }
+        restReminder(after: Self.reminderShowSeconds)
+    }
+
+    /// With "hide it and bring it back" on: put the strip away in `seconds`
+    /// (unless the cursor is on it), and ring again N minutes later while the
+    /// task still waits for an answer.
+    private func restReminder(after seconds: TimeInterval) {
+        reminderRest?.cancel()
+        guard modules.settings.reminderRepeat else { return }
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, !self.state.reminderHover, !self.modules.todo.ringing.isEmpty else { return }
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) { self.state.reminderHidden = true }
+            let back = DispatchWorkItem { [weak self] in
+                guard let self, !self.modules.todo.ringing.isEmpty else { return }
+                self.reminderRang()
+            }
+            self.reminderReturn = back
+            let minutes = TimeInterval(self.modules.settings.reminderRepeatMinutes)
+            DispatchQueue.main.asyncAfter(deadline: .now() + minutes * 60, execute: back)
+        }
+        reminderRest = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: work)
+    }
+
+    /// The strip itself, below the brow — when nothing else hangs there.
+    private func reminderStripZone() -> NSRect? {
+        guard reminderStripUp, !state.expanded, !state.voiceNotice, !state.claudePeek,
+              state.shellDone == nil, !(state.myIP != nil && state.myIPInStrip) else { return nil }
+        let f = metrics.screenFrame
+        let right = metrics.centerX + metrics.notchWidth / 2 + claudeSlotW
+        let left = mediaLeftEdge()
+        let top = f.maxY - metrics.notchHeight
+        let bottom = top - ReminderStrip.height - 6
         return NSRect(x: left - 6, y: bottom, width: right - left + 12, height: top - bottom)
     }
 
@@ -375,10 +506,15 @@ final class NotchController {
     private var claudeIslandShown: Bool { claudeIslandVisible && !modules.claude.sessions.isEmpty }
 
     /// Room taken right of the camera before the timer: the Claude island, or the
-    /// empty one that keeps the brow symmetric under a strip (dictation, `cape done`).
+    /// empty one that keeps the brow symmetric under a strip (dictation, `cape done`,
+    /// a reminder).
     private var claudeSlotW: CGFloat {
         claudeIslandVisible ? claudeIslandW
-            : ((state.voiceNotice || state.shellDone != nil) && !state.expanded ? NotchRootView.islandWidth : 0)
+            : (anyStrip && !state.expanded ? NotchRootView.islandWidth : 0)
+    }
+    /// A strip hangs under the brow (not counting the Claude list).
+    private var anyStrip: Bool {
+        state.voiceNotice || (state.myIP != nil && state.myIPInStrip) || state.shellDone != nil || reminderStripUp
     }
 
     /// Its width: the dot's island, or wider for three or four Clawds.
@@ -416,7 +552,7 @@ final class NotchController {
         let hasIsland = (m.source != .none || m.isPlaying) && modules.settings.isEnabled(.media)
         if let alert = state.alert { return notchLeft - NotchRootView.alertWidth(alert) }
         // No left island: the open list gets an empty one, mirroring Claude's.
-        let strip = state.claudePeek || state.voiceNotice || state.shellDone != nil
+        let strip = state.claudePeek || anyStrip
         return notchLeft - (hasIsland || strip ? NotchRootView.islandWidth : 0)
     }
 
@@ -452,26 +588,9 @@ final class NotchController {
                       width: w + 6, height: f.maxY - bottom + 40)
     }
 
-    /// Screen rect of the ringing-reminder pill — outermost on the right, after
-    /// the Claude island and the timer pill (with its controls, if revealed).
-    private func reminderZone() -> NSRect? {
-        let ringing = modules.todo.ringing
-        guard !ringing.isEmpty else { return nil }
-        let f = metrics.screenFrame
-        let claudeExt: CGFloat = claudeSlotW
-        let timerExt: CGFloat = modules.pomodoro.isActive
-            ? NotchRootView.timerPillWidth
-                + (state.pomodoroControls ? NotchRootView.pomodoroControlsWidth : 0)
-            : 0
-        let startX = metrics.centerX + metrics.notchWidth / 2 + claudeExt + timerExt
-        let w = NotchRootView.reminderWidth(NotchRootView.reminderText(ringing))
-        let bottom = f.maxY - metrics.notchHeight - 2
-        return NSRect(x: startX, y: bottom, width: w + 6, height: f.maxY - bottom + 40)
-    }
-
     private func registerToolShortcuts(_ map: [String: Shortcut]) {
         for tool in Tool.allCases {
-            if let shortcut = map[tool.rawValue] {
+            if let shortcut = map[tool.rawValue], modules.settings.isToolOn(tool) {
                 GlobalHotkeys.shared.register(id: tool.hotkeyID, shortcut) { [weak self] in
                     guard let self else { return }
                     self.modules.run(tool, state: self.state)
@@ -514,6 +633,7 @@ final class NotchController {
         shellDoneHide?.cancel()
         shellDoneHovered = false
         state.shellDone = nil
+        if state.myIPInStrip { myIPHide?.cancel(); myIPHovered = false; clearMyIP() }
         panel.ignoresMouseEvents = false
         state.prepareForExpand()   // restore last module (or reset after 30 min)
         if let module { state.selectModule(module) }
@@ -528,6 +648,7 @@ final class NotchController {
         state.claudePeek = false
         state.expanded = false
         state.tall = false          // reset the Tasks grow-toggle on close
+        if !state.myIPInStrip { clearMyIP() }   // the answer in the tile goes with the panel
         panel.ignoresMouseEvents = true
     }
 }

@@ -9,8 +9,14 @@ final class Settings: ObservableObject {
     @Published var bufferRetentionDays: Int { didSet { d.set(bufferRetentionDays, forKey: "bufferRetentionDays") } }
     @Published var clearBufferAtEndOfDay: Bool { didSet { d.set(clearBufferAtEndOfDay, forKey: "clearBufferAtEndOfDay") } }
     @Published var scanQRInImages: Bool { didSet { d.set(scanQRInImages, forKey: "scanQRInImages") } }
-    /// Ports (dev servers on localhost) on the Tools page.
+    /// Ports (dev servers on localhost) is on — off, it isn't checked at all.
     @Published var showPorts: Bool { didSet { d.set(showPorts, forKey: "showPorts") } }
+    /// The Tools page: its tiles' order, and the ones not shown there (a hidden
+    /// tool still works by its shortcut).
+    @Published var toolItemOrder: [String] { didSet { d.set(toolItemOrder, forKey: "toolItemOrder") } }
+    @Published var hiddenToolItems: [String] { didSet { d.set(hiddenToolItems, forKey: "hiddenToolItems") } }
+    /// One-shot tools switched off: no tile, no shortcut, never run.
+    @Published var disabledTools: [String] { didSet { d.set(disabledTools, forKey: "disabledTools") } }
 
     // MARK: Notch
     @Published var recallMinutes: Int { didSet { d.set(recallMinutes, forKey: "recallMinutes") } }
@@ -37,6 +43,12 @@ final class Settings: ObservableObject {
     // MARK: Tasks
     @Published var reminderSound: Bool { didSet { d.set(reminderSound, forKey: "reminderSound") } }
     @Published var reminderSoundName: String { didSet { d.set(reminderSoundName, forKey: "reminderSoundName") } }
+    /// ⏰ on the reminder strip: ring again in this many minutes.
+    @Published var reminderSnoozeMinutes: Int { didSet { d.set(reminderSnoozeMinutes, forKey: "reminderSnoozeMinutes") } }
+    /// An unanswered reminder slides away after a while and comes back (with the
+    /// sound) every `reminderRepeatMinutes` — else it stays until answered.
+    @Published var reminderRepeat: Bool { didSet { d.set(reminderRepeat, forKey: "reminderRepeat") } }
+    @Published var reminderRepeatMinutes: Int { didSet { d.set(reminderRepeatMinutes, forKey: "reminderRepeatMinutes") } }
 
     // MARK: Modules (order + which are enabled)
     @Published var moduleOrder: [String] { didSet { d.set(moduleOrder, forKey: "moduleOrder") } }
@@ -101,6 +113,13 @@ final class Settings: ObservableObject {
         clearBufferAtEndOfDay = d.object(forKey: "clearBufferAtEndOfDay") as? Bool ?? false
         scanQRInImages = d.object(forKey: "scanQRInImages") as? Bool ?? true
         showPorts = d.object(forKey: "showPorts") as? Bool ?? true
+        // Keep known items, append new ones (like the tabs).
+        var tools = (d.stringArray(forKey: "toolItemOrder") ?? []).filter { ToolItem(rawValue: $0) != nil }
+        for t in ToolItem.allCases where !tools.contains(t.rawValue) { tools.append(t.rawValue) }
+        toolItemOrder = tools
+        hiddenToolItems = d.stringArray(forKey: "hiddenToolItems") ?? []
+        // Get my IP talks to an outside service: off until someone turns it on.
+        disabledTools = d.stringArray(forKey: "disabledTools") ?? [ToolItem.myIP.rawValue]
         recallMinutes = d.object(forKey: "recallMinutes") as? Int ?? 30
         defaultModuleRaw = d.string(forKey: "defaultModuleRaw") ?? Module.tasks.rawValue
         openMediaOnHover = d.object(forKey: "openMediaOnHover") as? Bool ?? true
@@ -115,6 +134,9 @@ final class Settings: ObservableObject {
         autoCheckUpdates = d.object(forKey: "autoCheckUpdates") as? Bool ?? true
         reminderSound = d.object(forKey: "reminderSound") as? Bool ?? true
         reminderSoundName = d.string(forKey: "reminderSoundName") ?? "Ping"
+        reminderSnoozeMinutes = d.object(forKey: "reminderSnoozeMinutes") as? Int ?? 5
+        reminderRepeat = d.object(forKey: "reminderRepeat") as? Bool ?? false
+        reminderRepeatMinutes = d.object(forKey: "reminderRepeatMinutes") as? Int ?? 5
 
         // Normalize module order: keep known modules, append any new ones.
         var order = d.stringArray(forKey: "moduleOrder") ?? Module.allCases.map(\.rawValue)
@@ -169,6 +191,56 @@ final class Settings: ObservableObject {
     var defaultModule: Module {
         let m = Module(rawValue: defaultModuleRaw) ?? .tasks
         return isEnabled(m) ? m : (enabledModules.first ?? .tasks)
+    }
+
+    // MARK: - Tools page
+
+    var orderedToolItems: [ToolItem] { toolItemOrder.compactMap { ToolItem(rawValue: $0) } }
+    var shownToolItems: [ToolItem] { orderedToolItems.filter(isShown) }
+
+    /// Settings › Tools › On the Tools page: whether its tile is shown.
+    func isVisible(_ item: ToolItem) -> Bool { !hiddenToolItems.contains(item.rawValue) }
+    func setVisible(_ item: ToolItem, _ on: Bool) {
+        hiddenToolItems.removeAll { $0 == item.rawValue }
+        if !on { hiddenToolItems.append(item.rawValue) }
+    }
+
+    /// Settings › Tools › Tools: whether it works at all. The two switches are
+    /// their own settings (the wheel, QR scanning); Ports is `showPorts`.
+    func isEnabled(_ item: ToolItem) -> Bool {
+        switch item {
+        case .ports: return showPorts
+        case .reverseWheel: return reverseMouseScroll
+        case .qrInImages: return scanQRInImages
+        default: return !disabledTools.contains(item.rawValue)
+        }
+    }
+    func setEnabled(_ item: ToolItem, _ on: Bool) {
+        switch item {
+        case .ports: showPorts = on
+        case .reverseWheel: reverseMouseScroll = on
+        case .qrInImages: scanQRInImages = on
+        default:
+            disabledTools.removeAll { $0 == item.rawValue }
+            if !on { disabledTools.append(item.rawValue) }
+        }
+    }
+    func isToolOn(_ tool: Tool) -> Bool { ToolItem(rawValue: tool.rawValue).map(isEnabled) ?? true }
+
+    /// A tile on the Tools page: shown, and — for a tool or Ports — switched on.
+    /// A switch's tile stays while it's off (it's how you turn it back on).
+    func isShown(_ item: ToolItem) -> Bool {
+        guard isVisible(item) else { return false }
+        switch item {
+        case .reverseWheel, .qrInImages: return true
+        default: return isEnabled(item)
+        }
+    }
+    /// The shown tiles were rearranged in the notch: put them in that order,
+    /// leaving hidden ones where they were.
+    func reorderShownTools(_ shown: [ToolItem]) {
+        var next = shown.makeIterator()
+        toolItemOrder = orderedToolItems.map { isShown($0) ? (next.next() ?? $0) : $0 }.map(\.rawValue)
     }
 
     // MARK: - Module editing

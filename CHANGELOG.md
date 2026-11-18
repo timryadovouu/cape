@@ -4,6 +4,60 @@ All notable changes to Cape are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.6.0] — 2026-11-19
+
+### Added
+- **Get my IP** — a new tool: the flag, the country (in the app's language) and
+  your public IP. From its shortcut it drops a strip under the notch for 4
+  seconds; on the Tools page the answer shows in the tile. A click copies the IP
+  (the coral clip flashes). It asks **2ip.io** — one HTTPS request, no cookies,
+  only when you use it — and it's **off until you turn it on** (the tour's last
+  step, or Settings › Tools). Settings › Tools shows the exact address and has a
+  **▶ Test** button that sends the request and shows where it went and the
+  answer as it came.
+- **Rearrange the Tools page in the notch** — hold a tile, like widgets on an
+  iPhone: they rock slightly, drag one to its place, click anywhere or *Done*
+  to finish. Two to a row, three rows at most; a tile alone in its row spans it.
+- **Done keeps to the last three days** — Cape now remembers when a task was
+  ticked off. *Done* lists today, yesterday and the day before, newest first;
+  the rest folds under *Earlier · N* at the end of the list (tasks done before
+  this version have no date, so they start there).
+- **Empty the trash by holding it** — in the trash, hold the 🗑 and it fills
+  with red, like ⏻; once full, everything in it is deleted for good. A click
+  still goes back to the tasks.
+- **More times in words** — seconds (*"in 30 seconds"*, *"через 10 сек"*), halves
+  (*"через полторы минуты"*, *"полминуты"*, *"полтора часа"*) and fractions as
+  dictation writes them (*"1,5 hours"*, *"через 2.5 минуты"*).
+- **Reminder settings** — how long ⏰ snoozes (5 minutes by default) and
+  *Hide it and bring it back*, in Settings › Tasks.
+
+### Changed
+- **A due task drops a strip under the notch** — like `cape done`: the ringing
+  bell, the task and its time. It used to stick out as a pill at the far right
+  of the brow, widening it, and just passing the cursor over it silenced it and
+  opened Tasks. Now the music and Claude islands stay put; hovering the strip
+  shows **✓** (done) and **⏰** (ring again later), and a click puts it away —
+  the task waits under Overdue. Several due at once: the first one and “+2”, the
+  next slides in after you answer. The strip stays until you answer — or, with
+  *Hide it and bring it back*, slides away after 15 seconds and comes back with
+  the sound every 5 minutes (adjustable).
+- **The Tasks row lines up with the rail** — the field runs to the Tools
+  button, **Add** sits under the gear in its coral, and the trash is a button
+  under ⏻ instead of a row of its own, so the list gets that height back. The
+  trash button is grey like Tools (it's a place, not an action) with a count of
+  what's in it (up to 999, then “1K”). In the trash, rows match the task list:
+  ↩ to put back, a red 🗑 to delete for good.
+- **Tools is laid out like the rest** — Ports is a tile like the others instead
+  of a bar, next to Get my IP; the two switches sit below.
+- **Settings › Tools, in four blocks** — *On the Tools page* (which tiles show;
+  a hidden tool still runs by its shortcut), *Tools* (which work at all: off, a
+  tool has no tile, its shortcut does nothing and its code never runs — Ports
+  isn't checked, Get my IP never asks 2ip.io), *Shortcuts* (a tool that's off
+  keeps its combination, greyed) and *Get my IP*. The mouse wheel and QR
+  switches moved into *Tools*.
+- **The tour** — the Tasks and Tools steps say what's new, and the last step
+  offers Get my IP.
+
 ## [0.5.3] — 2026-11-01
 
 ### Changed

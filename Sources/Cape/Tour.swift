@@ -152,17 +152,17 @@ struct TourCaption: View {
         case .module(.timer):
             Text("Pomodoro with a countdown beside the notch — hover it for pause / next / cancel without opening the panel.")
         case .module(.tasks):
-            Text("Write the time in words — “call mom at 3pm”, “in 20 minutes” — and a bell rings when it's due. The 🔔 on a task opens its card with a calendar.")
+            Text("Write the time in words — “call mom at 3pm”, “in 20 minutes” — and when it's due a strip drops from the notch: ✓ done, ⏰ later. The 🔔 on a task opens its card with a calendar.")
         case .module(.buffer):
             Text("Everything you copy lands here: click to copy again, drag out, ⭐ to pin. 🎙 Dictation too — start with “note” or “заметка” and it goes to Tasks instead, time and all: “note call mom at 3pm”.")
         case .module(.screenTime):
             Text("Where the day went, by app and by category — and with ⚡, how much of the battery each app used: “46m · 6%”. Click a category to filter; the chart button shows the week.")
         case .tools:
-            Text("Color picker, keyboard cleaning, reversed mouse wheel, links from QR codes in screenshots, and Ports — what's running on localhost.")
+            Text("Color picker, keyboard cleaning, Ports — what's running on localhost, reversed mouse wheel and links from QR codes. Hold a tile to move it; Settings › Tools shows, hides or switches off each.")
         case .islands:
             Text("With the notch closed, small islands show what's going on. They're clickable — hover or click them.")
         case .setup:
-            Text("It's all on — switch off what you don't need; it then doesn't run at all. Change it any time in Settings.")
+            Text("Switch off what you don't need — it then doesn't run at all — and on what you'd like: Get my IP waits for you. Change it any time in Settings.")
         }
     }
 
@@ -222,7 +222,6 @@ struct TourPage: View {
                         Text(verbatim: "24:13").font(.system(size: 12, weight: .semibold, design: .rounded))
                             .monospacedDigit().foregroundStyle(Color.coral)
                     }
-                    island(width: 34) { RingingBell() }
                 }
                 .frame(height: 30)
                 .background(UnevenRoundedRectangle(cornerRadii: .init(bottomLeading: 12, bottomTrailing: 12),
@@ -236,7 +235,7 @@ struct TourPage: View {
                 legend("sparkle", "Claude", "coral: working · amber: waits for you · hover: sessions")
                 legend("timer", "Timer", "hover: pause / next / cancel")
                 legend(nil, "Clawd", "a session finished while you were away — click to go to it")
-                legend("bell.fill", "Reminder", "a task is due — hover to open Tasks")
+                legend("bell.fill", "Reminder", "a strip under the notch — hover: ✓ done · ⏰ later")
                 legend("doc.on.clipboard", "Flashes", "copy, picked color, QR link")
             }
         }
@@ -267,16 +266,19 @@ struct TourPage: View {
         }
     }
 
-    /// What to keep: tabs and launch on the left, the developer extras on the
-    /// right — each a switch, all on unless turned off.
+    /// What to keep: everyday things on the left, the developer extras on the
+    /// right — each a switch; all on but Get my IP, which asks an outside service.
     private var setup: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top, spacing: 18) {
                 VStack(alignment: .leading, spacing: 11) {
-                    groupTitle("Tabs and launch")
+                    groupTitle("Everyday")
                     switchRow("Launch at login", on: settings.launchAtLogin) { settings.launchAtLogin.toggle() }
                     switchRow("Pomodoro timer", on: settings.isEnabled(.timer)) { toggleTab(.timer) }
                     switchRow("Screen Time and battery use", on: settings.isEnabled(.screenTime)) { toggleTab(.screenTime) }
+                    switchRow("Get my IP — asks 2ip.io", on: settings.isEnabled(.myIP)) {
+                        settings.setEnabled(.myIP, !settings.isEnabled(.myIP))
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 VStack(alignment: .leading, spacing: 11) {

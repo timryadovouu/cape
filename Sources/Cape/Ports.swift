@@ -372,7 +372,9 @@ struct PortsPage: View {
 }
 
 /// The Tools-page entry for Ports: a full-width bar with the dev ports in use.
-struct PortsBar: View {
+/// Ports on the Tools page — a tile like the tools beside it: what's
+/// running on localhost at a glance; a click opens the list.
+struct PortsTile: View {
     @ObservedObject var ports: PortsMonitor
     let action: () -> Void
     @State private var hovering = false
@@ -382,23 +384,25 @@ struct PortsBar: View {
         Button(action: action) {
             HStack(spacing: 10) {
                 Image(systemName: "point.3.connected.trianglepath.dotted")
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(Color.coral)
-                    .frame(width: 26, height: 26)
+                    .frame(width: 30, height: 30)
                     .background(Color.coral.opacity(0.14))
-                    .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-                Text("Ports").font(.system(size: 12, weight: .semibold))
-                Text(summary(dev))
-                    .font(.system(size: 10, design: .monospaced))
-                    .foregroundStyle(.white.opacity(0.45))
-                    .lineLimit(1)
+                    .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Ports").font(.system(size: 12, weight: .semibold))
+                    Text(summary(dev))
+                        .font(.system(size: 10))
+                        .foregroundStyle(.white.opacity(0.45))
+                        .lineLimit(1)
+                }
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right")
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(.white.opacity(0.4))
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
+            .padding(7)
+            .frame(maxHeight: .infinity)
             .background(Color.white.opacity(hovering ? 0.12 : 0.06))
             .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
             .contentShape(Rectangle())

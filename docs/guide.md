@@ -29,8 +29,8 @@ the icon rail; on the right are **Tools**, the coral **Settings** gear and
   classic one, Sunrise or Water Lilies. Finder, Launchpad and Spotlight show it too.
 - On the first launch a **welcome tour** walks you through the real tabs and
   islands (again any time from Settings › Tips). Its last step lets you switch off
-  Pomodoro, Screen Time or the developer extras (Claude Code, Ports, `cape done`).
-  Whatever is off doesn't run at all.
+  Pomodoro, Screen Time or the developer extras (Claude Code, Ports, `cape done`),
+  and turn on Get my IP. Whatever is off doesn't run at all.
 
 **Beside the camera.** While the panel is open, the black areas either side of the
 lens show **CPU** on the left (red bar and %) and **RAM** on the right (used / total
@@ -44,10 +44,11 @@ not Activity Monitor's higher figure. It's measured only while the panel is open
   Media (can be turned off). Short flashes appear here too: a coral clip on copy,
   Focus / Break when the timer changes phase, the picked color, a QR link, a new
   Cape version, and a ⚡ with the battery level when you plug in the charger.
-- **Right**: the Claude Code island (see [Claude Code](#claude-code)), the Pomodoro
-  countdown (hover it for pause / next / cancel) and a ringing bell when a task is due.
+- **Right**: the Claude Code island (see [Claude Code](#claude-code)) and the
+  Pomodoro countdown (hover it for pause / next / cancel).
 - **Below**: strips that need more room drop down from the brow: the Claude
-  sessions list, the dictation model download, and `cape done`.
+  sessions list, the dictation model download, Get my IP, `cape done` and a task
+  that's due. The islands above stay where they are.
 
 The islands either side of the camera are the same width, so the brow grows evenly.
 
@@ -93,10 +94,31 @@ A local to-do list with **reminders**. Write the time into the task: "call mom a
 a task to open its card: edit the text, pick a quick time (in 1 h, 18:00, tomorrow
 9:00, Monday 9:00) or a date and time on the calendar. Enter saves, Esc closes.
 
-When a task is due, a ringing bell slides out to the right of the notch with a
-sound; hover it to jump to Tasks. With reminders around, tasks are grouped into
-Overdue / Today / Upcoming / No date / Done. Copy, delete, and a trash that keeps
-deleted tasks for a while.
+Times can be in seconds too ("in 30 seconds"), in halves ("через полторы минуты",
+"полминуты") or with a fraction ("in 1.5 hours").
+
+When a task is due, a strip with a ringing bell drops down from the notch with a
+sound; the music and Claude islands stay where they are. Hover it for **✓** (done)
+and **⏰** (ring again in 5 minutes, set in Settings › Tasks); a click elsewhere on
+it puts it away, and the task waits under Overdue. Several due at once show the
+first and “+2”; the next slides in once you answer. The strip stays until you do —
+or turn on *Hide it and bring it back*: it slides away after 15 seconds and comes
+back with the sound every few minutes.
+
+<p align="center">
+  <img src="screenshots/remind.png" width="49%" alt="A due task under the notch" />
+  <img src="screenshots/remindHover.png" width="49%" alt="Hovered: done and later" />
+</p>
+
+With reminders around, tasks are grouped into Overdue / Today / Upcoming / No date /
+Done. **Done** lists what you ticked off today, yesterday and the day before; older
+ones fold under **Earlier · N** at the end, a click opens them.
+
+The row at the top lines up with the rail: the field, **Add** under the gear, and
+the **🗑 trash** under ⏻ with a count of what's in it. Deleted tasks stay there for
+7 days: ↩ puts one back, the red 🗑 deletes it for good, and holding the trash
+button (it fills with red) empties it all at once; a click on it opens the trash
+and takes you back.
 
 ### Buffer
 
@@ -138,9 +160,12 @@ to you (top 5–20 or all).
 
 ## Tools
 
-On the **▦ Tools** page at the right of the rail. The one-shot tools can each get a
-global shortcut in Settings › Tools (any combination with ⌘, ⌥ or ⌃, no permission
-needed).
+On the **▦ Tools** page at the right of the rail: tiles, two to a row. **Hold a
+tile** to rearrange them, like widgets on an iPhone: they rock slightly, drag one
+to its place, click anywhere or *Done* to finish. The one-shot tools can each get
+a global shortcut in Settings › Tools (any combination with ⌘, ⌥ or ⌃, no
+permission needed). There you also choose which tiles show and which tools work
+at all: a hidden tool still runs by its shortcut; one that's off doesn't run.
 
 - **Pick color**: the system magnifier; click any pixel and its hex (`#FA834D`) is
   copied to the clipboard and the buffer, with a swatch flashing in the notch. Esc
@@ -149,6 +174,12 @@ needed).
   behind a full-screen overlay so you can wipe the keyboard. The trackpad still
   works for the **Done** button; it also unlocks after 2 minutes, on sleep, or when
   the screen locks.
+- **Get my IP** (off until you turn it on): the flag, the country and your public
+  IP. From its shortcut it drops a strip under the notch for a few seconds; on the
+  page the answer shows in the tile. A click copies the IP. It asks
+  **2ip.io** (`https://api.2ip.io/`) — one HTTPS request, no cookies, only when you
+  use it. Settings › Tools shows the address and has **▶ Test**, which sends the
+  request and shows where it went and the answer as it came.
 - **Reverse wheel** (a switch): flips a mouse wheel's scroll direction while the
   trackpad keeps natural scrolling, like Scroll Reverser (don't run both). A Magic
   Mouse counts as a trackpad here.
@@ -158,7 +189,7 @@ needed).
   one in the browser or stop it (click ✕ twice). Dev servers are shown; *Show all*
   adds system services. **Jupyter kernels** are shown as one row with their ports,
   and stopping one warns that the notebook loses its variables. Read with `lsof`,
-  only while the page is open. Hide it in Settings › Tools if you don't need it.
+  only while the page is open. Switch it off in Settings › Tools if you don't need it.
 
 <p align="center">
   <img src="screenshots/ports.png" width="70%" alt="Ports" />
@@ -283,14 +314,17 @@ remembers its size and the last page.
 - **Tabs**: turn tabs on or off and reorder them. A tab that's off doesn't run: with
   Screen Time off nothing is counted; with the Timer off a running Pomodoro stops.
 - **Timer**: break lengths, the end-of-session sound, and whether it plays during a Focus.
-- **Tasks**: the reminder sound.
+- **Tasks**: the reminder sound, how long ⏰ snoozes, hiding and bringing back an
+  unanswered reminder.
 - **Buffer**: folder location, how long to keep days or clear at the end of each day,
   QR codes in copied images.
 - **Screen Time**: how long to keep history (1 year by default), how many apps to
   list, battery use on battery only.
 - **Voice**: the model (downloaded once, with a delete button), spoken language,
   translate to English, the double-tap key, hold-to-talk keys, preloading at launch.
-- **Tools**: a shortcut for each tool, Ports on / off, the reversed mouse wheel.
+- **Tools**: which tiles show on the Tools page; which tools work at all (with the
+  mouse wheel and QR switches); a shortcut for each tool; Get my IP's address and
+  ▶ Test.
 - **Terminal**: install / remove `cape done`, its sound, and long commands with their threshold.
 - **Claude**: Allow / Deny from the notch and its timeout; Clawd (on / off, how long
   he waits, when he falls asleep); a sound when a session finishes.
@@ -377,7 +411,8 @@ With Claude tracking on, Cape also **reads** (never writes) the reset time from 
 desktop app's local storage and its session records.
 
 **Network**: only the update check and download (GitHub Releases), Spotify cover
-images, and the one-time dictation model download.
+images, the one-time dictation model download, and — if you turn it on and use it —
+Get my IP's one request to 2ip.io.
 
 ## Permissions
 

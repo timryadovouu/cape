@@ -49,6 +49,18 @@ final class NotchState: ObservableObject {
     /// A terminal command just finished (`cape done` / a long one): its strip
     /// under the brow, until it times out or is clicked.
     @Published var shellDone: ShellDone?
+    /// A due task's strip under the brow: put away for now ("hide it and bring it
+    /// back", Settings › Tasks), and whether the cursor is on it (✓ / ⏰ show).
+    @Published var reminderHidden = false
+    @Published var reminderHover = false
+    /// Get my IP: looking it up, the answer, or no connection.
+    enum MyIP: Equatable { case loading, found(IPLookup.Result), failed }
+    @Published var myIP: MyIP?
+    /// …shown as a strip under the brow (asked by shortcut, notch closed) rather
+    /// than in its tile on the Tools page.
+    @Published var myIPInStrip = false
+    /// Runs the lookup (set by NotchController).
+    var lookUpIP: (() -> Void)?
     /// The welcome tour's current step, while it's showing (keeps the notch open).
     @Published var tourStep: Int?
     /// The music island was clicked (play / pause) — don't open Media from that hover.
@@ -152,6 +164,16 @@ final class NotchState: ObservableObject {
             app.activate()
         }
         withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) { shellDone = nil }
+    }
+
+    /// Get my IP: put the IP on the clipboard (it lands in the buffer too) —
+    /// the coral clip flashes on the left, like any copy.
+    func copyMyIP() {
+        guard case .found(let r) = myIP else { return }
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(r.ip, forType: .string)
+        flashCopy()
     }
 
     /// Shown when a Pomodoro phase changes (rest starts / next focus starts).

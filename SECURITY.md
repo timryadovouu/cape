@@ -27,8 +27,9 @@ and credited to you in the changelog, if you like.
 ## What Cape touches
 
 Everything stays on your Mac — no accounts, no telemetry. Network use is limited
-to the update check and download (GitHub Releases), Spotify cover images, and the
-one-time dictation model download. Optional integrations write to files outside
+to the update check and download (GitHub Releases), Spotify cover images, the
+one-time dictation model download, and — only if you turn it on and use it — Get
+my IP's single HTTPS request to `https://api.2ip.io/`. Optional integrations write to files outside
 Cape's own folder only when you turn them on: Claude Code hooks in
 `~/.claude/settings.json` and one line in `~/.zshrc` for `cape done` — both
 backed up first. The guide's [Where data lives](docs/guide.md#where-data-lives)

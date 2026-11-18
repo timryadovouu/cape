@@ -4,9 +4,9 @@ import Foundation
 /// "позвонить маме в 15:00" → ("позвонить маме", today 15:00).
 ///
 /// Russian phrases are parsed by hand ("в 15:00", "в 3 часа дня", "завтра в 9",
-/// "через 20 минут", "через полчаса", number words like "в три"); anything else
-/// falls back to the system `NSDataDetector` ("at 3pm", "tomorrow 9am",
-/// "in 20 minutes"). Foundation-only so it can be tested on its own.
+/// "через 30 секунд", "через полторы минуты", "через полчаса", number words like
+/// "в три"); anything else falls back to the system `NSDataDetector` ("at 3pm",
+/// "tomorrow 9am"). Foundation-only so it can be tested on its own.
 enum DueParser {
     struct Result: Equatable {
         let title: String
@@ -51,23 +51,41 @@ enum DueParser {
         return Int(k) ?? numberWords[k] ?? enNumberWords[k]
     }
 
-    /// "через 20 минут" / "через пять мин" / "через час" / "через 2 часа" / "через полчаса",
-    /// and English "in 20 minutes" / "in an hour" / "in half an hour".
+    /// An amount in "через …" / "in …": also a fraction ("1,5", "2.5") and
+    /// "полтора / полторы" — not in `num`, where "9.30" is a time.
+    private static let halfWords: [String: Double] = ["полтора": 1.5, "полторы": 1.5]
+    private static func amountPattern(_ words: [String]) -> String {
+        let alts = words.sorted { $0.count > $1.count }.map { NSRegularExpression.escapedPattern(for: $0) }
+        return "(\\d{1,3}(?:[.,]\\d{1,2})?|" + alts.joined(separator: "|") + ")"
+    }
+    private static let ruAmount = amountPattern(Array(numberWords.keys) + Array(halfWords.keys))
+    private static let enAmount = amountPattern(Array(enNumberWords.keys))
+    private static func amount(_ s: String) -> Double? {
+        let k = s.lowercased().replacingOccurrences(of: ",", with: ".")
+        return Double(k) ?? halfWords[k] ?? number(k).map(Double.init)
+    }
+
+    /// "через 30 секунд" / "через 20 минут" / "через пять мин" / "через полторы минуты" /
+    /// "через 1,5 часа" / "через час" / "через полчаса" / "через полминуты", and English
+    /// "in 30 seconds" / "in 20 minutes" / "in an hour" / "in 1.5 hours" / "in half an hour".
     private static func parseRelative(_ text: String, now: Date) -> Result? {
-        let ru = "(?<![\\p{L}])через\\s+(?:(пол\\s?часа)|(?:\(num)\\s+)?(минут[уы]?|мин\\.?|час(?:а|ов)?|ч\\.?)(?![\\p{L}]))"
-        let en = "(?<![\\p{L}])in\\s+(?:(half\\s+an\\s+hour)|(?:\(enNum)\\s+)?(minutes?|mins?|hours?|hrs?)(?![\\p{L}]))"
+        let ru = "(?<![\\p{L}])через\\s+(?:(пол\\s?(?:часа|минуты))|(?:\(ruAmount)\\s+)?"
+            + "(секунд[уы]?|сек\\.?|минут[уы]?|мин\\.?|час(?:а|ов)?|ч\\.?)(?![\\p{L}]))"
+        let en = "(?<![\\p{L}])in\\s+(?:(half\\s+an?\\s+(?:hour|minute))|(?:\(enAmount)\\s+)?"
+            + "(seconds?|secs?|minutes?|mins?|hours?|hrs?)(?![\\p{L}]))"
         guard let m = match(ru, in: text) ?? match(en, in: text) else { return nil }
-        let minutes: Int
-        if m.group(1) != nil {
-            minutes = 30
+        let seconds: Double
+        if let half = m.group(1)?.lowercased() {
+            seconds = half.contains("час") || half.contains("hour") ? 1800 : 30
         } else {
-            let n = m.group(2).flatMap(number) ?? 1
+            let n = m.group(2).flatMap(amount) ?? 1
             let unit = m.group(3)?.lowercased() ?? ""
-            minutes = unit.hasPrefix("ч") || unit.hasPrefix("h") ? n * 60 : n
+            let per: Double = unit.hasPrefix("с") || unit.hasPrefix("s") ? 1
+                : unit.hasPrefix("ч") || unit.hasPrefix("h") ? 3600 : 60
+            seconds = (n * per).rounded()
         }
-        guard minutes > 0 else { return nil }
-        return Result(title: cleanup(text, removing: m.range),
-                      due: now.addingTimeInterval(TimeInterval(minutes * 60)))
+        guard seconds >= 1 else { return nil }
+        return Result(title: cleanup(text, removing: m.range), due: now.addingTimeInterval(seconds))
     }
 
     /// "[сегодня|завтра|послезавтра] в|к 15:00 / 9.30 / 3 часа дня / три".

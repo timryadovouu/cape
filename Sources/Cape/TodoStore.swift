@@ -8,6 +8,7 @@ struct TodoItem: Identifiable, Codable, Hashable {
     var deletedAt: Date?      // non-nil means it's in the trash
     var due: Date?            // reminder time, parsed from the text ("в 15:00")
     var remindedAt: Date?     // set once the reminder has fired
+    var doneAt: Date?         // when it was ticked off (older tasks: unknown → nil)
 }
 
 /// Local to-do list with a trash that keeps deleted items for `retentionDays`,
@@ -73,6 +74,12 @@ final class TodoStore: ObservableObject {
         refresh()
     }
 
+    /// Screenshot tool: ring the first `count` dated tasks, as if they came due.
+    func ringForDemo(_ count: Int) {
+        ringingIDs = all.filter { $0.due != nil && !$0.done }.prefix(count).map(\.id)
+        refresh()
+    }
+
     /// Fire reminders whose time has come. Tasks that came due while the app
     /// was closed ring once on the next launch.
     private func checkDue() {
@@ -93,6 +100,7 @@ final class TodoStore: ObservableObject {
     func toggle(_ item: TodoItem) {
         guard let i = all.firstIndex(where: { $0.id == item.id }) else { return }
         all[i].done.toggle()
+        all[i].doneAt = all[i].done ? Date() : nil
         commit()
     }
 

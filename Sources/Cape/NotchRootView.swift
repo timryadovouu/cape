@@ -65,23 +65,39 @@ struct NotchRootView: View {
     }
     private var showBlob: Bool { settings.trackClaude && (claude.anyWorking || claude.needsYou) }
     private var showClawds: Bool { !showBlob && settings.trackClaude && !claude.clawds.isEmpty }
-    /// With a strip down (dictation, `cape done`) and no Claude island, an empty
-    /// one keeps the brow symmetric around the camera.
-    private var claudeExt: CGFloat { showClaude ? claudeW : (showNotice || showDone ? Self.islandWidth : 0) }
+    /// With a strip down (dictation, `cape done`, a reminder) and no Claude island,
+    /// an empty one keeps the brow symmetric around the camera.
+    private var claudeExt: CGFloat {
+        showClaude ? claudeW : (showNotice || showIP || showDone || showReminder ? Self.islandWidth : 0)
+    }
 
     /// The sessions list dropped down from the Claude island (on hover).
     private var showPeek: Bool { showClaude && state.claudePeek && !claude.sessions.isEmpty }
     /// The dictation strip ("needs a model" → download → ready) — under the brow,
     /// unless the Claude list is open.
     private var showNotice: Bool { !state.expanded && state.voiceNotice && !showPeek }
-    /// A terminal command finished — after the other two, which it waits behind.
-    private var showDone: Bool { !state.expanded && state.shellDone != nil && !showPeek && !showNotice }
+    /// Get my IP, asked by its shortcut — before `cape done`: you just asked.
+    private var showIP: Bool {
+        !state.expanded && state.myIPInStrip && state.myIP != nil && !showPeek && !showNotice
+    }
+    /// A terminal command finished — after the ones above, which it waits behind.
+    private var showDone: Bool {
+        !state.expanded && state.shellDone != nil && !showPeek && !showNotice && !showIP
+    }
+    /// A task came due — it stays until answered, so the brief ones above go over
+    /// it for their few seconds and it comes back.
+    private var showReminder: Bool {
+        !state.expanded && !todo.ringing.isEmpty && !state.reminderHidden
+            && !showPeek && !showNotice && !showDone
+    }
     /// Whatever hangs below the brow, and how tall it is.
-    private var showDrop: Bool { showPeek || showNotice || showDone }
+    private var showDrop: Bool { showPeek || showNotice || showIP || showDone || showReminder }
     private var dropH: CGFloat {
         showPeek ? peekContentH
             : showNotice ? VoiceNoticePanel.height
-            : showDone ? ShellDoneStrip.height : 0
+            : showIP ? IPStrip.height
+            : showDone ? ShellDoneStrip.height
+            : showReminder ? ReminderStrip.height : 0
     }
     private var peekContentH: CGFloat {
         ClaudePeekPanel.height(sessions: claude.sessions, permissions: claude.permissions)
@@ -91,21 +107,6 @@ struct NotchRootView: View {
     private var peekW: CGFloat { leftExt + notchW + claudeExt }
     /// Horizontal center of the peek, relative to the camera.
     private var peekShift: CGFloat { notchW / 2 + claudeExt - peekW / 2 }
-
-    /// Task reminder that came due — outermost on the right until looked at.
-    private var showReminder: Bool { !state.expanded && !todo.ringing.isEmpty }
-    private var reminderText: String { Self.reminderText(todo.ringing) }
-    private var reminderExt: CGFloat { showReminder ? Self.reminderWidth(reminderText) : 0 }
-
-    /// "Call mom" / "Call mom +2" — the first ringing task, trimmed.
-    static func reminderText(_ ringing: [TodoItem]) -> String {
-        guard let first = ringing.first else { return "" }
-        let title = first.title.count > 24 ? String(first.title.prefix(23)) + "…" : first.title
-        return ringing.count > 1 ? "\(title) +\(ringing.count - 1)" : title
-    }
-    static func reminderWidth(_ text: String) -> CGFloat {
-        min(230, 40 + CGFloat(text.count) * 6.6)
-    }
 
     /// Left extension shows either a transient alert or a music equalizer.
     private var leftExt: CGFloat {
@@ -128,12 +129,12 @@ struct NotchRootView: View {
     private var islandW: CGFloat {
         // Collapsed, a side with no island ends exactly at the cutout's edge (the
         // window is centered on the physical notch — see NotchMetrics.centerX).
-        state.expanded ? Self.panelWidth : notchW + leftExt + claudeExt + rightExt + reminderExt
+        state.expanded ? Self.panelWidth : notchW + leftExt + claudeExt + rightExt
     }
     private var islandH: CGFloat { (state.expanded ? Self.expandedHeight(state.tall) : notchH) + Self.topOvershoot }
     private var radius: CGFloat { state.expanded ? 28 : min(13, notchH / 2) }
     // Shift the center so the middle (notch) portion stays over the camera.
-    private var centerShift: CGFloat { state.expanded ? 0 : (claudeExt + rightExt + reminderExt - leftExt) / 2 }
+    private var centerShift: CGFloat { state.expanded ? 0 : (claudeExt + rightExt - leftExt) / 2 }
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -152,7 +153,7 @@ struct NotchRootView: View {
                 .shadow(color: .black.opacity(state.expanded ? 0.55 : 0), radius: 16, y: 8)
                 .frame(width: islandW, height: islandH)
                 .offset(x: centerShift)
-            // The Claude sessions list — or the dictation / `cape done` strip — grows
+            // The Claude sessions list — or the dictation / `cape done` / reminder strip — grows
             // down out of the brow (hidden under it otherwise).
             UnevenRoundedRectangle(cornerRadii: .init(bottomLeading: showDrop ? 18 : radius,
                                                       bottomTrailing: showDrop ? 18 : radius),
@@ -172,9 +173,26 @@ struct NotchRootView: View {
                     .frame(width: peekW, height: VoiceNoticePanel.height)
                     .offset(x: peekShift, y: islandH)
                     .transition(Self.panelSwap)
+            } else if showIP, let info = state.myIP {
+                IPStrip(info: info) { state.copyMyIP() }
+                    .frame(width: peekW, height: IPStrip.height)
+                    .offset(x: peekShift, y: islandH)
+                    .transition(Self.panelSwap)
             } else if showDone, let done = state.shellDone {
                 ShellDoneStrip(done: done) { state.openShellDone() }
                     .frame(width: peekW, height: ShellDoneStrip.height)
+                    .offset(x: peekShift, y: islandH)
+                    .transition(Self.panelSwap)
+            } else if showReminder {
+                ReminderStrip(ringing: todo.ringing, hovered: state.reminderHover,
+                              snoozeMinutes: settings.reminderSnoozeMinutes,
+                              onDone: { if let t = todo.ringing.first { todo.toggle(t) } },
+                              onSnooze: {
+                                  guard let t = todo.ringing.first else { return }
+                                  todo.setDue(t, Date().addingTimeInterval(TimeInterval(settings.reminderSnoozeMinutes * 60)))
+                              },
+                              onDismiss: { todo.dismissRinging() })
+                    .frame(width: peekW, height: ReminderStrip.height)
                     .offset(x: peekShift, y: islandH)
                     .transition(Self.panelSwap)
             }
@@ -193,7 +211,8 @@ struct NotchRootView: View {
         .animation(.spring(response: 0.28, dampingFraction: 0.84), value: showNotice)
         .animation(.spring(response: 0.28, dampingFraction: 0.84), value: showDone)
         .animation(.spring(response: 0.28, dampingFraction: 0.84), value: peekContentH)
-        .animation(.spring(response: 0.34, dampingFraction: 0.7), value: reminderText)
+        .animation(.spring(response: 0.28, dampingFraction: 0.84), value: showReminder)
+        .animation(.spring(response: 0.28, dampingFraction: 0.84), value: showIP)
         .animation(.spring(response: 0.34, dampingFraction: 0.84), value: state.tall)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         // Fill into the notch/menu-bar safe area so no thin gap shows at the top.
@@ -345,23 +364,6 @@ struct NotchRootView: View {
                 }
             }
             .frame(width: rightExt)
-
-            // Reminder — outermost on the right, until hovered.
-            ZStack {
-                if showReminder {
-                    HStack(spacing: 5) {
-                        RingingBell()
-                        Text(reminderText)
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                    }
-                    .padding(.horizontal, 6)
-                    .transition(.scale(scale: 0.6, anchor: .leading).combined(with: .opacity))
-                }
-            }
-            .frame(width: reminderExt)
         }
         .frame(height: notchH)
         .padding(.top, Self.topOvershoot)   // keep content below the extended black top
@@ -508,7 +510,7 @@ struct ChargingBadge: View {
 }
 
 /// Coral bell that rings in short bursts (a quick wiggle every ~2.4 s) — the
-/// task-reminder glyph beside the brow.
+/// glyph on the reminder strip under the brow.
 struct RingingBell: View {
     @State private var angle = 0.0
     @State private var glow = false

@@ -5,25 +5,28 @@ import SwiftUI
 /// One-shot utilities — not tabs. They live on the Tools page (the grid button
 /// in the rail) and can each get a global shortcut in Settings › Tools.
 enum Tool: String, CaseIterable, Identifiable {
-    case colorPicker, cleanKeyboard
+    case colorPicker, cleanKeyboard, myIP
     var id: String { rawValue }
 
     var name: String {
         switch self {
         case .colorPicker: return String(localized: "Pick color")
         case .cleanKeyboard: return String(localized: "Clean keyboard")
+        case .myIP: return String(localized: "Get my IP")
         }
     }
     var detail: String {
         switch self {
         case .colorPicker: return String(localized: "Copies the hex to the buffer")
         case .cleanKeyboard: return String(localized: "Locks keys while you wipe it")
+        case .myIP: return String(localized: "Country and public IPv4")
         }
     }
     var icon: String {
         switch self {
         case .colorPicker: return "eyedropper"
         case .cleanKeyboard: return "keyboard"
+        case .myIP: return "globe.europe.africa"
         }
     }
     /// Stable id for the global hotkey registration.
@@ -31,6 +34,34 @@ enum Tool: String, CaseIterable, Identifiable {
         switch self {
         case .colorPicker: return 1
         case .cleanKeyboard: return 2
+        case .myIP: return 3
+        }
+    }
+}
+
+/// Everything on the Tools page — the one-shot tools, Ports and the two
+/// switches — in the order and with the visibility set in Settings › Tools.
+enum ToolItem: String, CaseIterable, Identifiable {
+    case colorPicker, cleanKeyboard, ports, myIP, reverseWheel, qrInImages
+    var id: String { rawValue }
+
+    /// The one-shot tool behind it, if it is one.
+    var tool: Tool? { Tool(rawValue: rawValue) }
+
+    var name: String {
+        switch self {
+        case .ports: return String(localized: "Ports")
+        case .reverseWheel: return String(localized: "Reverse wheel")
+        case .qrInImages: return String(localized: "QR in images")
+        default: return tool?.name ?? rawValue
+        }
+    }
+    var icon: String {
+        switch self {
+        case .ports: return "point.3.connected.trianglepath.dotted"
+        case .reverseWheel: return "computermouse"
+        case .qrInImages: return "qrcode.viewfinder"
+        default: return tool?.icon ?? "questionmark"
         }
     }
 }
@@ -38,12 +69,88 @@ enum Tool: String, CaseIterable, Identifiable {
 extension AppModules {
     /// Run a tool — from its tile or its global shortcut.
     func run(_ tool: Tool, state: NotchState) {
+        guard settings.isToolOn(tool) else { return }    // switched off in Settings › Tools
         switch tool {
         case .colorPicker:
             EyeDropper.pick { hex, color in state.flashColor(hex, Color(nsColor: color)) }
         case .cleanKeyboard:
             keyboardCleaner.start()
+        case .myIP:
+            state.lookUpIP?()
         }
+    }
+}
+
+// MARK: - Get my IP
+
+/// The public IP and its country, from 2ip.io — asked only when Get my IP is
+/// used (or tested in Settings › Tools). The country's name comes from macOS,
+/// in the app's language.
+enum IPLookup {
+    static let endpoint = "https://api.2ip.io/"
+
+    struct Result: Equatable {
+        var ip: String
+        var code: String?         // "NL"; nil when the service doesn't know
+
+        /// 🇳🇱 — from the two letters' regional indicator symbols.
+        var flag: String? {
+            guard let code, code.count == 2, code.allSatisfy({ $0.isASCII && $0.isLetter }),
+                  code != "XX" else { return nil }
+            return String(String.UnicodeScalarView(code.uppercased().unicodeScalars
+                .compactMap { UnicodeScalar(127_397 + $0.value) }))
+        }
+        var country: String? {
+            guard flag != nil, let code else { return nil }
+            return AppLanguage.locale.localizedString(forRegionCode: code)
+        }
+    }
+
+    /// {"ip": "89.105.203.226", "code": "NL", …}
+    static func fetch() async -> Result? {
+        guard let data = try? await get(),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let ip = json["ip"] as? String else { return nil }
+        return Result(ip: ip, code: json["code"] as? String)
+    }
+
+    /// Settings › Tools › Test: where the request actually went (the final URL,
+    /// after any redirect), the status and the time — then the answer as it
+    /// came, pretty-printed, or the error.
+    static func rawAnswer() async -> String {
+        let start = Date()
+        do {
+            let (data, response) = try await send()
+            let ms = Int(Date().timeIntervalSince(start) * 1000)
+            let http = response as? HTTPURLResponse
+            let head = "GET \(http?.url?.absoluteString ?? endpoint) → HTTP \(http?.statusCode ?? 0) · \(ms) ms"
+            var body = String(data: data, encoding: .utf8) ?? ""
+            if let obj = try? JSONSerialization.jsonObject(with: data),
+               let pretty = try? JSONSerialization.data(withJSONObject: obj, options: [.prettyPrinted, .sortedKeys]),
+               let text = String(data: pretty, encoding: .utf8) {
+                body = text
+            }
+            return head + "\n\n" + body
+        } catch {
+            return "GET \(endpoint) → " + error.localizedDescription
+        }
+    }
+
+    private static func get() async throws -> Data {
+        let (data, response) = try await send()
+        if let code = (response as? HTTPURLResponse)?.statusCode, code != 200 {
+            throw URLError(.badServerResponse, userInfo: [NSLocalizedDescriptionKey: "HTTP \(code)"])
+        }
+        return data
+    }
+
+    /// The one request: GET over HTTPS, no cookies, no cache, "Cape" as the agent.
+    private static func send() async throws -> (Data, URLResponse) {
+        var req = URLRequest(url: URL(string: endpoint)!, cachePolicy: .reloadIgnoringLocalCacheData,
+                             timeoutInterval: 5)
+        req.httpShouldHandleCookies = false
+        req.setValue("Cape", forHTTPHeaderField: "User-Agent")
+        return try await URLSession.shared.data(for: req)
     }
 }
 
@@ -240,43 +347,230 @@ struct ToolsPanel: View {
     @ObservedObject var state: NotchState
     let modules: AppModules
 
+    // Rearranging — hold a tile, like widgets on an iPhone: they wiggle, drag
+    // one to its new place, click anywhere (or Done) to finish.
+    @State private var editing = false
+    @State private var order: [ToolItem] = []
+    @State private var dragging: ToolItem?
+    @State private var dragPoint: CGPoint = .zero     // the cursor, in the grid
+    @State private var grabOffset: CGSize = .zero     // …from the tile's top-left
+
+    /// Two to a row, three rows at most; a tile alone in its row spans it.
+    private static let columns = 2, maxRows = 3
+    static let tileHeight: CGFloat = 44
+    private static let hGap: CGFloat = 8, vGap: CGFloat = 6
+
     var body: some View {
         if state.showingPorts && settings.showPorts {
             PortsPage(ports: modules.ports) { state.showingPorts = false }
         } else {
-            grid
+            page
         }
     }
 
-    private var grid: some View {
-        VStack(spacing: 8) {
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)],
-                      spacing: 8) {
-                tile(.colorPicker)
-                tile(.cleanKeyboard)
-                ToggleTile(name: String(localized: "Reverse wheel"), detail: String(localized: "Mouse only, trackpad stays"),
-                           icon: "computermouse", isOn: $settings.reverseMouseScroll)
-                ToggleTile(name: String(localized: "QR in images"), detail: String(localized: "Adds links from screenshots"),
-                           icon: "qrcode.viewfinder", isOn: $settings.scanQRInImages)
-            }
-            if settings.showPorts {
-                PortsBar(ports: modules.ports) { state.showingPorts = true }
+    private var items: [ToolItem] {
+        Array((editing ? order : settings.shownToolItems).prefix(Self.columns * Self.maxRows))
+    }
+
+    private var page: some View {
+        VStack(spacing: 6) {
+            if items.isEmpty {
+                Spacer(minLength: 0)
+                Text("All tools are hidden").font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.4))
+            } else {
+                grid
             }
             Spacer(minLength: 0)
-            Button { modules.settingsWindow.show(.tools) } label: {
-                Text("Set a shortcut for any tool in Settings › Tools")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.white.opacity(0.35))
-                    .underline()
+            footer
+        }
+    }
+
+    // MARK: Grid
+
+    private var gridHeight: CGFloat {
+        let rows = (items.count + Self.columns - 1) / Self.columns
+        return CGFloat(rows) * Self.tileHeight + CGFloat(max(0, rows - 1)) * Self.vGap
+    }
+
+    /// Where tile `i` of `count` goes in a grid `width` wide.
+    private static func slot(_ i: Int, of count: Int, width: CGFloat) -> CGRect {
+        let row = i / columns, col = i % columns
+        let alone = count % columns == 1 && i == count - 1
+        let w = alone ? width : (width - hGap) / 2
+        return CGRect(x: alone ? 0 : CGFloat(col) * (w + hGap), y: CGFloat(row) * (tileHeight + vGap),
+                      width: w, height: tileHeight)
+    }
+
+    /// Which slot a point falls in.
+    private static func index(at p: CGPoint, of count: Int, width: CGFloat) -> Int {
+        let row = max(0, Int(p.y / (tileHeight + vGap)))
+        let alone = count % columns == 1 && row == (count - 1) / columns
+        let col = alone ? 0 : (p.x > width / 2 ? 1 : 0)
+        return min(count - 1, row * columns + col)
+    }
+
+    private var grid: some View {
+        GeometryReader { geo in
+            let width = geo.size.width
+            let list = items
+            ZStack(alignment: .topLeading) {
+                ForEach(Array(list.enumerated()), id: \.element) { i, item in
+                    let slot = Self.slot(i, of: list.count, width: width)
+                    let lifted = dragging == item
+                    itemTile(item)
+                        .frame(width: slot.width, height: Self.tileHeight)
+                        .modifier(Wiggle(active: editing && !lifted, delay: Double(i) * 0.05))
+                        .scaleEffect(lifted ? 1.04 : 1)
+                        .shadow(color: .black.opacity(lifted ? 0.5 : 0), radius: 10, y: 4)
+                        .offset(x: lifted ? dragPoint.x - grabOffset.width : slot.minX,
+                                y: lifted ? dragPoint.y - grabOffset.height : slot.minY)
+                        .zIndex(lifted ? 1 : 0)
+                        .allowsHitTesting(!editing)
+                        .simultaneousGesture(LongPressGesture(minimumDuration: 0.45).onEnded { _ in
+                            startEditing()
+                        })
+                }
             }
-            .buttonStyle(.plain)
+            .frame(width: width, height: gridHeight, alignment: .topLeading)
+            .contentShape(Rectangle())
+            .gesture(dragGesture(width: width, count: list.count), including: editing ? .all : .subviews)
+        }
+        .frame(height: gridHeight)
+    }
+
+    private func dragGesture(width: CGFloat, count: Int) -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { value in
+                if dragging == nil {
+                    // A click (no movement) on the grid ends the rearranging.
+                    guard hypot(value.translation.width, value.translation.height) > 3 else { return }
+                    let i = Self.index(at: value.startLocation, of: count, width: width)
+                    guard order.indices.contains(i) else { return }
+                    let slot = Self.slot(i, of: count, width: width)
+                    grabOffset = CGSize(width: value.startLocation.x - slot.minX,
+                                        height: value.startLocation.y - slot.minY)
+                    dragging = order[i]
+                }
+                dragPoint = value.location
+                guard let d = dragging, let from = order.firstIndex(of: d) else { return }
+                let to = Self.index(at: value.location, of: count, width: width)
+                if to != from {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        order.move(fromOffsets: IndexSet(integer: from), toOffset: to > from ? to + 1 : to)
+                    }
+                }
+            }
+            .onEnded { _ in
+                guard dragging != nil else { finishEditing(); return }
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { dragging = nil }
+                settings.reorderShownTools(order + settings.shownToolItems.filter { !order.contains($0) })
+            }
+    }
+
+    private func startEditing() {
+        guard !editing else { return }
+        order = settings.shownToolItems
+        withAnimation(.easeOut(duration: 0.15)) { editing = true }
+    }
+
+    private func finishEditing() {
+        dragging = nil
+        withAnimation(.easeOut(duration: 0.15)) { editing = false }
+    }
+
+    private var footer: some View {
+        Group {
+            if editing {
+                Button(action: finishEditing) {
+                    Text("Done")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Color.coral)
+                        .padding(.horizontal, 14).padding(.vertical, 4)
+                        .background(Capsule().fill(Color.coral.opacity(0.14)))
+                }
+                .buttonStyle(.plain)
+            } else {
+                Button { modules.settingsWindow.show(.tools) } label: {
+                    Text("Hold a tile to move it · shortcuts in Settings › Tools")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.white.opacity(0.35))
+                        .underline()
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .frame(height: 20)
+    }
+
+    // MARK: Tiles
+
+    /// While rearranging, a tile's own click does nothing.
+    private func act(_ action: @escaping () -> Void) -> () -> Void {
+        { if !editing { action() } }
+    }
+    private func guarded(_ binding: Binding<Bool>) -> Binding<Bool> {
+        Binding(get: { binding.wrappedValue }, set: { if !editing { binding.wrappedValue = $0 } })
+    }
+
+    @ViewBuilder private func itemTile(_ item: ToolItem) -> some View {
+        switch item {
+        case .ports:
+            PortsTile(ports: modules.ports, action: act { state.showingPorts = true })
+        case .myIP:
+            ipTile
+        case .reverseWheel:
+            ToggleTile(name: item.name, detail: String(localized: "Mouse only, trackpad stays"),
+                       icon: item.icon, isOn: guarded($settings.reverseMouseScroll))
+        case .qrInImages:
+            ToggleTile(name: item.name, detail: String(localized: "Adds links from screenshots"),
+                       icon: item.icon, isOn: guarded($settings.scanQRInImages))
+        case .colorPicker, .cleanKeyboard:
+            if let tool = item.tool { tile(tool) }
         }
     }
 
     private func tile(_ tool: Tool) -> some View {
-        ToolTile(tool: tool, shortcut: settings.toolShortcuts[tool.rawValue]) {
-            modules.run(tool, state: state)
+        ToolTile(tool: tool, shortcut: settings.toolShortcuts[tool.rawValue],
+                 action: act { modules.run(tool, state: state) })
+    }
+
+    /// Get my IP shows its answer right in the tile; a second click copies the IP.
+    private var ipTile: some View {
+        let detail: String?
+        switch state.myIP {
+        case .loading?: detail = String(localized: "Checking your IP…")
+        case .failed?: detail = String(localized: "No connection")
+        case .found(let r)?:
+            detail = [r.flag, r.country, r.ip].compactMap { $0 }.joined(separator: " ")
+        case nil: detail = nil
         }
+        return ToolTile(tool: .myIP, shortcut: settings.toolShortcuts[Tool.myIP.rawValue], detail: detail,
+                        action: act {
+            if case .found? = state.myIP { state.copyMyIP() } else { modules.run(.myIP, state: state) }
+        })
+    }
+}
+
+/// The rearranging wiggle: a slight rock back and forth, each tile a beat apart.
+private struct Wiggle: ViewModifier {
+    let active: Bool
+    let delay: Double
+    @State private var tilt = false
+
+    func body(content: Content) -> some View {
+        content
+            .rotationEffect(.degrees(active ? (tilt ? 0.35 : -0.35) : 0))
+            .onAppear { if active { start() } }
+            .onChange(of: active) { on in on ? start() : stop() }
+    }
+
+    private func start() {
+        tilt = false
+        withAnimation(.easeInOut(duration: 0.16).repeatForever(autoreverses: true).delay(delay)) { tilt = true }
+    }
+    private func stop() {
+        withAnimation(.easeOut(duration: 0.12)) { tilt = false }
     }
 }
 
@@ -294,7 +588,7 @@ private struct ToggleTile: View {
                 Image(systemName: icon)
                     .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(isOn ? Color.coral : .white.opacity(0.5))
-                    .frame(width: 34, height: 34)
+                    .frame(width: 30, height: 30)
                     .background((isOn ? Color.coral : .white).opacity(isOn ? 0.14 : 0.08))
                     .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
@@ -307,7 +601,8 @@ private struct ToggleTile: View {
                 Spacer(minLength: 0)
                 CoralSwitch(isOn: isOn)
             }
-            .padding(8)
+            .padding(7)
+            .frame(maxHeight: .infinity)
             .background(Color.white.opacity(hovering ? 0.12 : 0.06))
             .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
             .contentShape(Rectangle())
@@ -320,6 +615,8 @@ private struct ToggleTile: View {
 private struct ToolTile: View {
     let tool: Tool
     let shortcut: Shortcut?
+    /// In place of the tool's description (Get my IP: its answer).
+    var detail: String? = nil
     let action: () -> Void
     @State private var hovering = false
 
@@ -329,15 +626,16 @@ private struct ToolTile: View {
                 Image(systemName: tool.icon)
                     .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(Color.coral)
-                    .frame(width: 34, height: 34)
+                    .frame(width: 30, height: 30)
                     .background(Color.coral.opacity(0.14))
                     .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(tool.name).font(.system(size: 12, weight: .semibold))
-                    Text(tool.detail)
+                    Text(verbatim: detail ?? tool.detail)
                         .font(.system(size: 10))
-                        .foregroundStyle(.white.opacity(0.45))
+                        .foregroundStyle(.white.opacity(detail == nil ? 0.45 : 0.75))
                         .lineLimit(1)
+                        .truncationMode(.middle)
                 }
                 Spacer(minLength: 0)
                 if let shortcut {
@@ -349,7 +647,8 @@ private struct ToolTile: View {
                         .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
                 }
             }
-            .padding(8)
+            .padding(7)
+            .frame(maxHeight: .infinity)
             .background(Color.white.opacity(hovering ? 0.12 : 0.06))
             .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
             .contentShape(Rectangle())

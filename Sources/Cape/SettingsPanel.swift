@@ -157,6 +157,9 @@ struct SettingsView: View {
     @ObservedObject var navigation: SettingsNavigation
     /// The picked icon couldn't be put on the bundle (a read-only place).
     @State private var iconFailed = false
+    /// Settings › Tools › Get my IP › ▶: the answer, while / after it's asked.
+    @State private var ipTest: String?
+    @State private var ipTesting = false
 
     var body: some View {
         NavigationSplitView {
@@ -314,7 +317,7 @@ struct SettingsView: View {
             tip("sparkle", "Claude island",
                 "Coral while Claude works, amber when it waits for you, Clawd when it finished while you were away. Hover it for your sessions and Allow / Deny; slide left along the top to open the full panel.")
             tip("timer", "Timer and reminders",
-                "Hover the countdown for pause / next / cancel. A ringing bell means a task is due — hover it to see which.")
+                "Hover the countdown for pause / next / cancel. When a task is due, a strip drops down from the notch: hover it for ✓ (done) and ⏰ (later).")
         }
         Section("Handy") {
             tip("doc.on.clipboard", "Buffer",
@@ -408,7 +411,32 @@ struct SettingsView: View {
         } header: {
             Text("Reminders")
         } footer: {
-            Text("Add a time right in the task: “call mom at 3pm”, “in 20 minutes”, “tomorrow 9am” — or pick one with the 🔔 button. It rings beside the notch when due.")
+            Text("Add a time right in the task: “call mom at 3pm”, “in 20 minutes”, “tomorrow 9am” — or pick one with the 🔔 button. When it's due, a strip with a ringing bell drops down from the notch.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+        Section {
+            Picker("⏰ reminds again in", selection: $settings.reminderSnoozeMinutes) {
+                Text("1 minute").tag(1)
+                Text("5 minutes").tag(5)
+                Text("10 minutes").tag(10)
+                Text("15 minutes").tag(15)
+                Text("30 minutes").tag(30)
+                Text("1 hour").tag(60)
+            }
+            Toggle("Hide it and bring it back", isOn: $settings.reminderRepeat)
+            if settings.reminderRepeat {
+                Picker("Bring it back in", selection: $settings.reminderRepeatMinutes) {
+                    Text("1 minute").tag(1)
+                    Text("5 minutes").tag(5)
+                    Text("10 minutes").tag(10)
+                    Text("15 minutes").tag(15)
+                    Text("30 minutes").tag(30)
+                }
+            }
+        } header: {
+            Text("When it rings")
+        } footer: {
+            Text("Hover the strip for ✓ (done) and ⏰ (remind again later); a click anywhere else puts it away — the task stays under Overdue. It stays until you answer — or, with “Hide it and bring it back”, slides away after 15 seconds and comes back with the sound until you do.")
                 .font(.caption).foregroundStyle(.secondary)
         }
     }
@@ -555,39 +583,118 @@ struct SettingsView: View {
     }
 
     @ViewBuilder private var tools: some View {
+        // What's shown on the Tools page in the notch (a hidden tool still runs
+        // by its shortcut). Fixed order — the tiles' own order is set in the
+        // notch. Rows are written out, not ForEach'd: the grouped Form mixes up
+        // rows that share ids across its sections (the same six here and below).
         Section {
-            ForEach(Tool.allCases) { tool in
-                HStack {
-                    Label(tool.name, systemImage: tool.icon)
-                    Spacer()
-                    ShortcutRecorder(shortcut: Binding(
-                        get: { settings.toolShortcuts[tool.rawValue] },
-                        set: { settings.toolShortcuts[tool.rawValue] = $0 }
-                    ), hotkeyID: tool.hotkeyID)
-                }
-            }
+            visibleRow(.colorPicker)
+            visibleRow(.cleanKeyboard)
+            visibleRow(.ports)
+            visibleRow(.myIP)
+            visibleRow(.reverseWheel)
+            visibleRow(.qrInImages)
+        } header: {
+            Text("On the Tools page")
+        }
+        // Whether each one works at all: off, a tool has no tile and its shortcut
+        // does nothing; its code never runs.
+        Section {
+            enabledRow(.colorPicker)
+            enabledRow(.cleanKeyboard)
+            enabledRow(.ports)
+            enabledRow(.myIP)
+            enabledRow(.reverseWheel)
+            enabledRow(.qrInImages)
+        } header: {
+            Text("Tools")
+        } footer: {
+            Text("Off, a tool does nothing at all — no tile, its shortcut waits, Ports isn't checked and Get my IP never contacts 2ip.io. Reverse wheel needs Accessibility; turn off Scroll Reverser or similar apps, or the wheel is flipped twice. QR in images is also in Settings › Buffer.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+        Section {
+            shortcutRow(.colorPicker)
+            shortcutRow(.cleanKeyboard)
+            shortcutRow(.myIP)
         } header: {
             Text("Shortcuts")
         } footer: {
-            Text("Global shortcuts need ⌘, ⌥ or ⌃. While recording, Esc cancels and ⌫ clears. No extra permissions needed.")
+            Text("Global shortcuts need ⌘, ⌥ or ⌃. While recording, Esc cancels and ⌫ clears. No extra permissions needed. A tool that's off keeps its shortcut; it works again once the tool is on.")
                 .font(.caption).foregroundStyle(.secondary)
         }
         Section {
-            Toggle("Show Ports on the Tools page", isOn: $settings.showPorts)
+            HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(verbatim: "2ip.io")
+                    Text(verbatim: "GET \(IPLookup.endpoint)").font(.caption.monospaced()).foregroundStyle(.secondary)
+                }
+                Spacer()
+                if ipTesting { ProgressView().controlSize(.small) }
+                Button {
+                    ipTesting = true
+                    Task {
+                        let answer = await IPLookup.rawAnswer()
+                        ipTest = answer
+                        ipTesting = false
+                    }
+                } label: {
+                    Label("Test", systemImage: "play.fill")
+                }
+                .disabled(ipTesting || !settings.isToolOn(.myIP))
+            }
+            if let ipTest {
+                Text(verbatim: ipTest)
+                    .font(.system(size: 11, design: .monospaced))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         } header: {
-            Text("Ports")
+            Text("Get my IP")
         } footer: {
-            Text("What's running on localhost — dev servers, Jupyter — with open and stop. For developers; off, it isn't checked at all.")
+            Text(settings.isToolOn(.myIP)
+                 ? "Only when you use Get my IP, Cape sends this one request over HTTPS — no cookies, nothing about you but the IP the server sees anyway. ▶ sends it now and shows the address it went to and the answer as it came."
+                 : "Get my IP is off — 2ip.io is never contacted.")
                 .font(.caption).foregroundStyle(.secondary)
         }
-        Section {
-            Toggle("Reverse the mouse wheel (trackpad stays natural)", isOn: $settings.reverseMouseScroll)
-        } header: {
-            Text("Mouse")
-        } footer: {
-            Text("Needs Accessibility. Turn off Scroll Reverser or similar apps, or the wheel is flipped twice.")
-                .font(.caption).foregroundStyle(.secondary)
+    }
+
+    /// One line of Settings › Tools: icon, name, switch — the same for all six.
+    private func toolRow(_ item: ToolItem, on: Binding<Bool>) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: item.icon).frame(width: 18)
+            Text(item.name)
+            Spacer()
+            Toggle("", isOn: on).labelsHidden()
         }
+    }
+
+    /// On the Tools page: is its tile shown. Greyed while the tool itself is off
+    /// (nothing to show) — except the two switches, whose tile is how you turn them on.
+    private func visibleRow(_ item: ToolItem) -> some View {
+        toolRow(item, on: Binding(get: { settings.isVisible(item) },
+                                  set: { settings.setVisible(item, $0) }))
+            .disabled(!settings.isEnabled(item) && item != .reverseWheel && item != .qrInImages)
+    }
+
+    /// Tools: does it work at all.
+    private func enabledRow(_ item: ToolItem) -> some View {
+        toolRow(item, on: Binding(get: { settings.isEnabled(item) },
+                                  set: { settings.setEnabled(item, $0) }))
+    }
+
+    /// Shortcuts: a tool that's off keeps its combination, greyed and not recordable.
+    private func shortcutRow(_ tool: Tool) -> some View {
+        let on = settings.isToolOn(tool)
+        return HStack {
+            Label(tool.name, systemImage: tool.icon)
+            Spacer()
+            ShortcutRecorder(shortcut: Binding(
+                get: { settings.toolShortcuts[tool.rawValue] },
+                set: { settings.toolShortcuts[tool.rawValue] = $0 }
+            ), hotkeyID: tool.hotkeyID)
+        }
+        .disabled(!on)
+        .opacity(on ? 1 : 0.45)
     }
 
     @ViewBuilder private var claudePage: some View {

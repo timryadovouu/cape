@@ -6,17 +6,18 @@ struct TodoPanel: View {
     @ObservedObject var state: NotchState
     @State private var draft = ""
     @State private var showTrash = false
+    /// The done tasks older than three days, unfolded under "Earlier".
+    @State private var showEarlier = false
     /// Task open in the card (text + reminder), floating over the list.
     @State private var editingID: UUID?
 
     var body: some View {
         VStack(spacing: 8) {
-            header
+            topRow
 
             if showTrash {
                 trashList
             } else {
-                addField
                 activeList
             }
 
@@ -35,40 +36,82 @@ struct TodoPanel: View {
         }
     }
 
-    private var header: some View {
-        HStack {
-            Spacer()
-            Button { showTrash.toggle() } label: {
-                Image(systemName: showTrash ? "list.bullet" : "trash")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.white.opacity(0.6))
+    /// The rail's shape and sizes: its buttons are 40 × 32, 5 apart.
+    private static let radius: CGFloat = 9
+    private static let rowHeight: CGFloat = 32
+    private static let buttonWidth: CGFloat = 40
+
+    /// [new task field] [Add] [🗑], lined up with the rail above: Add under the
+    /// gear and in its coral (an action), the trash under ⏻ but grey like Tools
+    /// (a place you switch to, with a count of what's in it), the field up to
+    /// the Tools button. The trash is a button here, not a row of its own, so
+    /// the list keeps the height. In the trash the field gives way to a note
+    /// that runs up to the 🗑 (lit): a click takes you back, holding it empties
+    /// the trash.
+    private var topRow: some View {
+        HStack(spacing: 5) {
+            Group {
+                if showTrash {
+                    Text(store.trash.isEmpty
+                         ? "Deleted tasks are kept for \(store.retentionDays) days"
+                         : "Kept for \(store.retentionDays) days · hold 🗑 to empty now")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.white.opacity(0.45))
+                        .lineLimit(1)
+                } else {
+                    TextField("New task… add a time: “at 3pm”, “in 20 min”", text: $draft)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 12))
+                        .onSubmit(commit)
+                }
+            }
+            .padding(.horizontal, 11)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: Self.rowHeight)
+            .background(Color.white.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: Self.radius, style: .continuous))
+
+            Button(action: commit) {
+                // A word that doesn't fit the gear's width (“Добавить”) becomes a +.
+                ViewThatFits(in: .horizontal) {
+                    Text("Add").font(.system(size: 12, weight: .semibold)).fixedSize()
+                    Image(systemName: "plus").font(.system(size: 13, weight: .semibold))
+                }
+                .foregroundStyle(Color.coral)
+                .frame(width: Self.buttonWidth, height: Self.rowHeight)
+                .background(
+                    RoundedRectangle(cornerRadius: Self.radius, style: .continuous)
+                        .fill(Color.coral.opacity(0.14))
+                )
             }
             .buttonStyle(.plain)
-            .help(showTrash ? String(localized: "Back to tasks") : String(localized: "Show trash"))
+            .opacity(showTrash ? 0 : 1)
+            .frame(width: showTrash ? 0 : nil)
+            .padding(.leading, showTrash ? -5 : 0)     // and its gap: the note reaches the 🗑
+            .disabled(showTrash)
+
+            TrashButton(open: showTrash, count: store.trash.count,
+                        onToggle: { showTrash.toggle() },
+                        onEmpty: { store.emptyTrash() })
+                .overlay(alignment: .topTrailing) { trashBadge }
         }
     }
 
-    private var addField: some View {
-        HStack(spacing: 8) {
-            TextField("New task… add a time: “at 3pm”, “in 20 min”", text: $draft)
-                .textFieldStyle(.plain)
-                .font(.system(size: 12))
-                .onSubmit(commit)
-            Button(action: commit) {
-                Text("Add")
-                    .font(.system(size: 12, weight: .semibold))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 5)
-                    .background(Color.white.opacity(0.16))
-                    .clipShape(Capsule())
-            }
-            .buttonStyle(.plain)
+    /// How many deleted tasks wait in the trash — a badge like the gear's update
+    /// dot: the number up to 999, then "1K", "12K".
+    @ViewBuilder private var trashBadge: some View {
+        let n = store.trash.count
+        if n > 0 && !showTrash {
+            Text(verbatim: n < 1000 ? "\(n)" : "\(n / 1000)K")
+                .font(.system(size: 9, weight: .bold))
+                .monospacedDigit()
+                .foregroundStyle(.white)
+                .padding(.horizontal, 4)
+                .frame(minWidth: 15, minHeight: 15)
+                .background(Capsule().fill(Color(white: 0.3)))
+                .overlay(Capsule().strokeBorder(Color.black, lineWidth: 1.5))
+                .offset(x: 4, y: -4)
         }
-        .padding(.leading, 11)
-        .padding(.trailing, 6)
-        .padding(.vertical, 6)
-        .background(Color.white.opacity(0.08))
-        .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
     }
 
     private func commit() {
@@ -106,12 +149,13 @@ struct TodoPanel: View {
                         VStack(spacing: 5) {
                             ForEach(sections(now: context.date), id: \.title) { section in
                                 if let title = section.title { sectionHeader(title, section.alert) }
-                                ForEach(section.items) { item in
-                                    TaskRow(item: item, now: context.date,
-                                            onToggle: { store.toggle(item) },
-                                            onCopy: { copyTitle(item.title) },
-                                            onReminder: { openEditor(item) },
-                                            onDelete: { store.delete(item) })
+                                ForEach(section.items) { row($0, now: context.date) }
+                            }
+                            let older = olderDone(now: context.date)
+                            if !older.isEmpty {
+                                earlierHeader(older.count)
+                                if showEarlier {
+                                    ForEach(older) { row($0, now: context.date) }
                                 }
                             }
                         }
@@ -119,6 +163,14 @@ struct TodoPanel: View {
                 }
             }
         }
+    }
+
+    private func row(_ item: TodoItem, now: Date) -> some View {
+        TaskRow(item: item, now: now,
+                onToggle: { store.toggle(item) },
+                onCopy: { copyTitle(item.title) },
+                onReminder: { openEditor(item) },
+                onDelete: { store.delete(item) })
     }
 
     // MARK: - Sections
@@ -129,13 +181,30 @@ struct TodoPanel: View {
         let items: [TodoItem]
     }
 
+    /// Done lists only what was ticked off today, yesterday or the day before;
+    /// the rest waits, folded, under "Earlier" (older tasks have no date: there).
+    private func recentCutoff(_ now: Date) -> Date {
+        let cal = Calendar.current
+        return cal.date(byAdding: .day, value: -2, to: cal.startOfDay(for: now)) ?? now
+    }
+    private func recentDone(now: Date) -> [TodoItem] {
+        let cutoff = recentCutoff(now)
+        return store.items.filter { $0.done && ($0.doneAt ?? .distantPast) >= cutoff }
+            .sorted { $0.doneAt! > $1.doneAt! }
+    }
+    private func olderDone(now: Date) -> [TodoItem] {
+        let cutoff = recentCutoff(now)
+        return store.items.filter { $0.done && ($0.doneAt ?? .distantPast) < cutoff }
+            .sorted { ($0.doneAt ?? $0.createdAt) > ($1.doneAt ?? $1.createdAt) }
+    }
+
     /// Overdue / Today / Upcoming / No date / Done — only when at least one task
-    /// has a time; otherwise the plain list (undone on top) as before.
+    /// shown has a time; otherwise the plain list (undone on top) as before.
     private func sections(now: Date) -> [TaskSection] {
         let undone = store.items.filter { !$0.done }
-        let done = store.items.filter(\.done)
-        guard store.items.contains(where: { $0.due != nil }) else {
-            return [TaskSection(title: nil, items: store.items)]
+        let done = recentDone(now: now)
+        guard (undone + done).contains(where: { $0.due != nil }) else {
+            return [TaskSection(title: nil, items: undone + done)].filter { !$0.items.isEmpty }
         }
         let cal = Calendar.current
         let dated = undone.filter { $0.due != nil }.sorted { $0.due! < $1.due! }
@@ -161,6 +230,29 @@ struct TodoPanel: View {
         .padding(.top, 2)
     }
 
+    /// "EARLIER · 33 ›" — a click unfolds the older done tasks (folded again
+    /// each time the notch opens).
+    private func earlierHeader(_ count: Int) -> some View {
+        Button { withAnimation(.easeOut(duration: 0.2)) { showEarlier.toggle() } } label: {
+            HStack(spacing: 5) {
+                Text(String(localized: "Earlier").uppercased() + " · \(count)")
+                    .font(.system(size: 9, weight: .semibold))
+                    .tracking(0.6)
+                    .monospacedDigit()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 8, weight: .bold))
+                    .rotationEffect(.degrees(showEarlier ? 90 : 0))
+                Spacer()
+            }
+            .foregroundStyle(.white.opacity(0.4))
+            .padding(.leading, 4)
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(showEarlier ? String(localized: "Hide older done tasks") : String(localized: "Show older done tasks"))
+    }
+
     private var trashList: some View {
         Group {
             if store.trash.isEmpty {
@@ -172,23 +264,9 @@ struct TodoPanel: View {
                 ScrollView {
                     VStack(spacing: 5) {
                         ForEach(store.trash) { item in
-                            HStack(spacing: 8) {
-                                Text(item.title).font(.system(size: 12))
-                                    .strikethrough(item.done)
-                                    .foregroundStyle(.white.opacity(0.6))
-                                    .lineLimit(1)
-                                Spacer()
-                                Button { store.restore(item) } label: {
-                                    Image(systemName: "arrow.uturn.backward")
-                                }.buttonStyle(.plain)
-                                Button { store.purge(item) } label: {
-                                    Image(systemName: "xmark")
-                                }.buttonStyle(.plain).foregroundStyle(.white.opacity(0.5))
-                            }
-                            .font(.system(size: 12))
-                            .padding(.horizontal, 10).padding(.vertical, 7)
-                            .background(Color.white.opacity(0.05))
-                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            TrashRow(item: item,
+                                     onRestore: { store.restore(item) },
+                                     onPurge: { store.purge(item) })
                         }
                     }
                 }
@@ -291,18 +369,110 @@ private struct TaskRow: View {
 
     private func rowButton(_ icon: String, help: String, danger: Bool = false,
                            action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: icon)
-                .font(.system(size: 11, weight: .medium))
-                .frame(width: 26, height: 26)
-                .foregroundStyle(danger ? Color(red: 1, green: 0.5, blue: 0.5) : .white.opacity(0.75))
-                .background(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .fill(danger ? Color.capeRed.opacity(0.18) : Color.white.opacity(0.13))
-                )
+        taskRowButton(icon, help: help, danger: danger, action: action)
+    }
+}
+
+/// A task row's 26 pt square button — white, or red for a destructive one.
+private func taskRowButton(_ icon: String, help: String, danger: Bool = false,
+                           action: @escaping () -> Void) -> some View {
+    Button(action: action) {
+        Image(systemName: icon)
+            .font(.system(size: 11, weight: .medium))
+            .frame(width: 26, height: 26)
+            .foregroundStyle(danger ? Color(red: 1, green: 0.5, blue: 0.5) : .white.opacity(0.75))
+            .background(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(danger ? Color.capeRed.opacity(0.18) : Color.white.opacity(0.13))
+            )
+    }
+    .buttonStyle(.plain)
+    .help(help)
+}
+
+/// The 🗑 at the end of the Tasks row, under ⏻. A click opens the trash and,
+/// from it, takes you back. In the trash, hold it like ⏻: it fills with red
+/// from the bottom, and once full the trash is emptied for good. Let go early
+/// and nothing happens.
+private struct TrashButton: View {
+    let open: Bool
+    let count: Int
+    let onToggle: () -> Void
+    let onEmpty: () -> Void
+
+    @State private var fill: CGFloat = 0
+    @State private var pressedAt: Date?
+    @State private var emptied = false
+    private static let hold: Double = 0.8
+    private var canEmpty: Bool { open && count > 0 }
+
+    var body: some View {
+        Image(systemName: "trash")
+            .font(.system(size: 13, weight: open ? .bold : .medium))
+            .frame(width: 40, height: 32)
+            .foregroundStyle(.white.opacity(open ? 1 : count == 0 ? 0.3 : 0.5))
+            .background(
+                ZStack(alignment: .bottom) {
+                    Color.white.opacity(open ? 0.24 : 0.07)
+                    Color.capeRed.opacity(0.8).frame(height: 32 * fill)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .strokeBorder(fill > 0 ? Color.capeRed : Color.white.opacity(open ? 0.35 : 0), lineWidth: 1)
+            )
+            .contentShape(Rectangle())
+            .onLongPressGesture(minimumDuration: Self.hold, maximumDistance: 30) {
+                guard canEmpty else { return }
+                emptied = true
+                onEmpty()
+                withAnimation(.easeOut(duration: 0.25)) { fill = 0 }
+            } onPressingChanged: { pressing in
+                if pressing {
+                    pressedAt = Date()
+                    emptied = false
+                    if canEmpty { withAnimation(.linear(duration: Self.hold)) { fill = 1 } }
+                } else {
+                    // A click (not a hold that was let go early) opens / leaves the trash.
+                    let quick = Date().timeIntervalSince(pressedAt ?? .distantPast) < 0.3
+                    if !emptied && (quick || !canEmpty) { onToggle() }
+                    withAnimation(.easeOut(duration: 0.2)) { fill = 0 }
+                }
+            }
+            .help(!open ? String(localized: "Show trash")
+                  : canEmpty ? String(localized: "Back to tasks · hold to empty the trash")
+                  : String(localized: "Back to tasks"))
+    }
+}
+
+/// A task in the trash — the same size and buttons as a row in the list:
+/// ↩ puts it back, the red 🗑 deletes it for good.
+private struct TrashRow: View {
+    let item: TodoItem
+    let onRestore: () -> Void
+    let onPurge: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        HStack(spacing: 9) {
+            Text(item.title)
+                .font(.system(size: 12))
+                .strikethrough(item.done)
+                .foregroundStyle(.white.opacity(0.6))
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            HStack(spacing: 6) {
+                taskRowButton("arrow.uturn.backward", help: String(localized: "Restore"), action: onRestore)
+                taskRowButton("trash", help: String(localized: "Delete for good"), danger: true, action: onPurge)
+            }
         }
-        .buttonStyle(.plain)
-        .help(help)
+        .frame(height: 26)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(Color.white.opacity(hovering ? 0.1 : 0.05))
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .onHover { hovering = $0 }
     }
 }
 
