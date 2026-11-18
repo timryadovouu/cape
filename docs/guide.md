@@ -164,8 +164,9 @@ On the **▦ Tools** page at the right of the rail: tiles, two to a row. **Hold 
 tile** to rearrange them, like widgets on an iPhone: they rock slightly, drag one
 to its place, click anywhere or *Done* to finish. The one-shot tools can each get
 a global shortcut in Settings › Tools (any combination with ⌘, ⌥ or ⌃, no
-permission needed). There you also choose which tiles show and which tools work
-at all: a hidden tool still runs by its shortcut; one that's off doesn't run.
+permission needed). There a table has each tool with two checkboxes: **On / off**
+(off, it doesn't run at all and its shortcut does nothing) and **In the notch**
+(whether it has a tile here — a tool without one still runs by its shortcut).
 
 - **Pick color**: the system magnifier; click any pixel and its hex (`#FA834D`) is
   copied to the clipboard and the buffer, with a swatch flashing in the notch. Esc
@@ -322,8 +323,8 @@ remembers its size and the last page.
   list, battery use on battery only.
 - **Voice**: the model (downloaded once, with a delete button), spoken language,
   translate to English, the double-tap key, hold-to-talk keys, preloading at launch.
-- **Tools**: which tiles show on the Tools page; which tools work at all (with the
-  mouse wheel and QR switches); a shortcut for each tool; Get my IP's address and
+- **Tools**: one table — each tool On / off and In the notch (the mouse wheel and
+  QR switches are in it too); a shortcut for each tool; Get my IP's address and
   ▶ Test.
 - **Terminal**: install / remove `cape done`, its sound, and long commands with their threshold.
 - **Claude**: Allow / Deny from the notch and its timeout; Clawd (on / off, how long

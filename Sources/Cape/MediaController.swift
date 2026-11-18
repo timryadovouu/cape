@@ -50,6 +50,9 @@ final class MediaController: ObservableObject {
 
     private var timer: Timer?
     private var lastPoll = Date.distantPast
+    /// Spotify said it stopped — it's usually quitting (⌘Q): don't script it for
+    /// a few seconds. A `tell` sent just as it exits would launch it again.
+    private var spotifyQuietUntil = Date.distantPast
     private var cmusPID: pid_t = 0          // last seen, to skip the process-table scan
     private let queue = DispatchQueue(label: "io.cape.media")
     private lazy var cmusRemote = Self.findCmusRemote()
@@ -66,7 +69,7 @@ final class MediaController: ObservableObject {
         // Spotify posts this the instant playback changes — no polling lag on ⏯.
         DistributedNotificationCenter.default().addObserver(
             forName: NSNotification.Name("com.spotify.client.PlaybackStateChanged"),
-            object: nil, queue: .main) { [weak self] _ in self?.poll() }
+            object: nil, queue: .main) { [weak self] note in self?.spotifyChanged(note.userInfo) }
         // A player opening or quitting changes the source right away.
         let ws = NSWorkspace.shared.notificationCenter
         for name in [NSWorkspace.didLaunchApplicationNotification, NSWorkspace.didTerminateApplicationNotification] {
@@ -114,9 +117,30 @@ final class MediaController: ObservableObject {
         return cmusPID > 0
     }
 
+    /// Spotify's own notice of a change. Only a track that started playing is
+    /// worth a query (for its cover). A pause is taken from the notice itself,
+    /// and "Stopped" — what quitting posts — sends no script at all: Spotify is
+    /// on its way out, and a `tell` landing after it's gone relaunches it.
+    private func spotifyChanged(_ info: [AnyHashable: Any]?) {
+        switch info?["Player State"] as? String {
+        case "Playing":
+            poll()
+        case "Paused":
+            lastPoll = Date()
+            guard source == .spotify else { return }
+            if let p = info?["Playback Position"] as? Double { position = p }
+            positionDate = Date()
+            isPlaying = false
+            updateNowPlaying()
+        default:
+            spotifyQuietUntil = Date().addingTimeInterval(5)
+            poll()                      // cmus, if it plays — or nothing
+        }
+    }
+
     private func poll() {
         lastPoll = Date()
-        let spotify = spotifyRunning
+        let spotify = spotifyRunning && Date() >= spotifyQuietUntil
         let remote = cmusRemote
         queue.async { [weak self] in
             guard let self else { return }

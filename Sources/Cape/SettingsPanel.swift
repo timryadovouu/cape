@@ -583,33 +583,28 @@ struct SettingsView: View {
     }
 
     @ViewBuilder private var tools: some View {
-        // What's shown on the Tools page in the notch (a hidden tool still runs
-        // by its shortcut). Fixed order — the tiles' own order is set in the
-        // notch. Rows are written out, not ForEach'd: the grouped Form mixes up
-        // rows that share ids across its sections (the same six here and below).
+        // One table: each tool, whether it works at all (On / off — off, it
+        // never runs, its shortcut does nothing) and whether it has a tile on
+        // the Tools page (In the notch). Fixed order; the tiles' own order is
+        // set in the notch. It's a single Form row holding a Grid, so the
+        // grouped Form has no rows of ours to mix up.
         Section {
-            visibleRow(.colorPicker)
-            visibleRow(.cleanKeyboard)
-            visibleRow(.ports)
-            visibleRow(.myIP)
-            visibleRow(.reverseWheel)
-            visibleRow(.qrInImages)
-        } header: {
-            Text("On the Tools page")
-        }
-        // Whether each one works at all: off, a tool has no tile and its shortcut
-        // does nothing; its code never runs.
-        Section {
-            enabledRow(.colorPicker)
-            enabledRow(.cleanKeyboard)
-            enabledRow(.ports)
-            enabledRow(.myIP)
-            enabledRow(.reverseWheel)
-            enabledRow(.qrInImages)
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 9) {
+                GridRow {
+                    Color.clear.frame(height: 1).gridCellUnsizedAxes([.horizontal, .vertical])
+                    Text("On / off").gridColumnAlignment(.center)
+                    Text("In the notch").gridColumnAlignment(.center)
+                }
+                .font(.caption).foregroundStyle(.secondary)
+                ForEach(ToolItem.allCases) { item in
+                    Divider().gridCellUnsizedAxes(.horizontal)
+                    toolTableRow(item)
+                }
+            }
         } header: {
             Text("Tools")
         } footer: {
-            Text("Off, a tool does nothing at all — no tile, its shortcut waits, Ports isn't checked and Get my IP never contacts 2ip.io. Reverse wheel needs Accessibility; turn off Scroll Reverser or similar apps, or the wheel is flipped twice. QR in images is also in Settings › Buffer.")
+            Text("Off, a tool doesn't run at all and its shortcut does nothing. Reverse wheel needs Accessibility.")
                 .font(.caption).foregroundStyle(.secondary)
         }
         Section {
@@ -658,28 +653,25 @@ struct SettingsView: View {
         }
     }
 
-    /// One line of Settings › Tools: icon, name, switch — the same for all six.
-    private func toolRow(_ item: ToolItem, on: Binding<Bool>) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: item.icon).frame(width: 18)
-            Text(item.name)
-            Spacer()
-            Toggle("", isOn: on).labelsHidden()
+    /// A line of the Tools table: the tool, then two checkboxes — works at all,
+    /// and has a tile in the notch. The second is greyed while the tool is off
+    /// (nothing to show) — except the two switches, whose tile is how you turn
+    /// them back on.
+    @ViewBuilder private func toolTableRow(_ item: ToolItem) -> some View {
+        let isSwitch = item == .reverseWheel || item == .qrInImages
+        GridRow {
+            Label(item.name, systemImage: item.icon)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Toggle("", isOn: Binding(get: { settings.isEnabled(item) },
+                                     set: { settings.setEnabled(item, $0) }))
+                .toggleStyle(.checkbox).labelsHidden()
+                .gridColumnAlignment(.center)
+            Toggle("", isOn: Binding(get: { settings.isVisible(item) },
+                                     set: { settings.setVisible(item, $0) }))
+                .toggleStyle(.checkbox).labelsHidden()
+                .gridColumnAlignment(.center)
+                .disabled(!settings.isEnabled(item) && !isSwitch)
         }
-    }
-
-    /// On the Tools page: is its tile shown. Greyed while the tool itself is off
-    /// (nothing to show) — except the two switches, whose tile is how you turn them on.
-    private func visibleRow(_ item: ToolItem) -> some View {
-        toolRow(item, on: Binding(get: { settings.isVisible(item) },
-                                  set: { settings.setVisible(item, $0) }))
-            .disabled(!settings.isEnabled(item) && item != .reverseWheel && item != .qrInImages)
-    }
-
-    /// Tools: does it work at all.
-    private func enabledRow(_ item: ToolItem) -> some View {
-        toolRow(item, on: Binding(get: { settings.isEnabled(item) },
-                                  set: { settings.setEnabled(item, $0) }))
     }
 
     /// Shortcuts: a tool that's off keeps its combination, greyed and not recordable.

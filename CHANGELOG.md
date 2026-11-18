@@ -4,6 +4,23 @@ All notable changes to Cape are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.6.1] — 2026-11-19
+
+### Changed
+- **Settings › Tools is one table** — each tool once, with two checkboxes:
+  **On / off** (does it work at all — off, it never runs and its shortcut does
+  nothing) and **In the notch** (does it have a tile on the Tools page). It
+  replaces the two lists of the same six names one under the other. *In the
+  notch* is greyed while a tool is off; the mouse wheel and QR keep it, since
+  their tile is how you turn them back on.
+
+### Fixed
+- **Quitting Spotify no longer brings it back** — with cmus playing, ⌘Q in
+  Spotify could reopen it, sometimes twice. Spotify announces a change as it
+  quits, and Cape asked it what was playing; the question arrived after it had
+  gone, and macOS relaunched it to answer. Now a pause is read from Spotify's own
+  notice, and after it stops Cape leaves it alone for a few seconds.
+
 ## [0.6.0] — 2026-11-19
 
 ### Added

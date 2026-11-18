@@ -296,13 +296,14 @@
 "No date" = "Без даты";
 "Trash is empty" = "Корзина пуста";
 "All tools are hidden" = "Все инструменты скрыты";
-"Off, a tool does nothing at all — no tile, its shortcut waits, Ports isn't checked and Get my IP never contacts 2ip.io. Reverse wheel needs Accessibility; turn off Scroll Reverser or similar apps, or the wheel is flipped twice. QR in images is also in Settings › Buffer." = "Выключенный инструмент не делает ничего — плитки нет, сочетание ждёт, Порты не проверяются, а «Мой IP» не обращается к 2ip.io. Обратному колесу нужен Универсальный доступ; выключи Scroll Reverser и похожие приложения, иначе колесо перевернётся дважды. QR в картинках есть и в Настройках › Буфер.";
+"On / off" = "Вкл / выкл";
+"In the notch" = "В чёлке";
+"Off, a tool doesn't run at all and its shortcut does nothing. Reverse wheel needs Accessibility." = "Выключенный инструмент вообще не работает, и его сочетание ничего не делает. Реверсу колеса нужен Универсальный доступ.";
 "Global shortcuts need ⌘, ⌥ or ⌃. While recording, Esc cancels and ⌫ clears. No extra permissions needed. A tool that's off keeps its shortcut; it works again once the tool is on." = "Глобальным сочетаниям нужен ⌘, ⌥ или ⌃. При записи Esc отменяет, ⌫ очищает. Дополнительных разрешений не нужно. У выключенного инструмента сочетание сохраняется и снова заработает, когда инструмент включишь.";
 "Only when you use Get my IP, Cape sends this one request over HTTPS — no cookies, nothing about you but the IP the server sees anyway. ▶ sends it now and shows the address it went to and the answer as it came." = "Только когда ты пользуешься «Мой IP», Cape отправляет этот единственный запрос по HTTPS — без cookies и без каких-либо данных о тебе, кроме IP, который сервер и так видит. ▶ отправляет его сейчас и показывает, куда он ушёл и что пришло в ответ.";
 "Get my IP is off — 2ip.io is never contacted." = "«Мой IP» выключен — к 2ip.io запросов нет.";
 "Hold a tile to move it · shortcuts in Settings › Tools" = "Зажми плитку, чтобы переставить · сочетания — в Настройках › Инструменты";
 "Test" = "Тест";
-"On the Tools page" = "На странице «Инструменты»";
 "Get my IP" = "Мой IP";
 "Country and public IPv4" = "Страна и внешний IPv4";
 "Checking your IP…" = "Узнаю IP…";
